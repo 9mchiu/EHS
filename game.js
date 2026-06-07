@@ -400,7 +400,10 @@ function createQuestionElement(question, questionNumber) {
         radio.addEventListener('change', function() {
             const questionId = parseInt(this.name.split('-')[1]);
             gameState.answers[questionId] = parseInt(this.value);
-            updateScore();
+        radio.addEventListener('change', function() {
+            const questionId = parseInt(this.name.split('-')[1]);
+            gameState.answers[questionId] = parseInt(this.value);
+        });
         });
     });
     
