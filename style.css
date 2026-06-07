@@ -208,6 +208,17 @@ body {
     background-color: #2d6a4f;
 }
 
+/* 匯出按鈕 */
+.btn-export {
+    background-color: #40916c;
+    color: white;
+    padding: 10px 20px;
+}
+
+.btn-export:hover {
+    background-color: #2d6a4f;
+}
+
 /* 模態框關閉按鈕 */
 .btn-modal-close {
     position: absolute;
@@ -685,6 +696,8 @@ body {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 30px;
+    flex-wrap: wrap;
+    gap: 20px;
 }
 
 .leaderboard-title {
@@ -705,6 +718,7 @@ body {
     display: flex;
     gap: 15px;
     align-items: center;
+    flex-wrap: wrap;
 }
 
 .search-input {
