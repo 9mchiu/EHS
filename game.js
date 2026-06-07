@@ -2,6 +2,7 @@
 // 遊戲狀態管理
 let gameState = {
     currentPage: 'home',
+    employeeId: null,
     quizStarted: false,
     quizActive: false,
     currentQuizPage: 1,
@@ -10,8 +11,10 @@ let gameState = {
     score: 0,
     startTime: null,
     elapsedTime: 0,
+    timerRunning: false,
+    timerInterval: null,
     leaderboard: JSON.parse(localStorage.getItem('leaderboard')) || [],
-    backgroundMusic: null
+    confirmExitCallback: null,
 };
 
 // 模擬題目資料 (之後可連接到後端API)
@@ -167,7 +170,8 @@ function bindEventListeners() {
     
     // 遊戲規則頁面按鈕
     document.getElementById('btn-agree-start').addEventListener('click', beginQuiz);
-    
+    // 輸入工號
+    document.getElementById('btn-confirm-employee').addEventListener('click', confirmEmployeeId);
     // 測驗頁面按鈕
     document.getElementById('btn-close-quiz').addEventListener('click', closeQuiz);
     document.getElementById('btn-prev-page').addEventListener('click', previousQuizPage);
@@ -256,20 +260,52 @@ function startQuiz() {
  * 開始計時並顯示第一頁題目
  */
 function beginQuiz() {
-    console.log('✅ 使用者同意規則，開始測驗');
+    console.log('✅ 使用者同意規則 → 開啟工號輸入');
+
+    const modal = document.getElementById('employee-modal');
+    modal.classList.add('active');
+}
+
+function confirmEmployeeId() {
+    const input = document.getElementById('employee-id-input');
+    const id = input.value.trim();
+
+    if (!id) {
+        alert('請輸入工號');
+        return;
+    }
+
+    gameState.employeeId = id;
+
+    // 關閉 modal
+    document.getElementById('employee-modal').classList.remove('active');
+
+    // 👉 這裡才開始遊戲
+    startQuizAfterEmployee();
+}
+
+function startQuizAfterEmployee() {
+    console.log('🎬 開始測驗（正式）');
+
     gameState.quizActive = true;
     gameState.startTime = Date.now();
     gameState.currentQuizPage = 1;
     gameState.answers = {};
-    
-    // 生成題目
+    gameState.score = 0;
+
     renderQuizQuestions();
-    
-    // 顯示測驗頁面
     showPage('quiz-page');
-    
-    // 啟動計時器
+
+    // 🔥 只有這裡才啟動 timer
     startTimer();
+}
+
+function resetTimer() {
+    if (gameState.timerInterval) {
+        clearInterval(gameState.timerInterval);
+        gameState.timerInterval = null;
+    }
+    gameState.timerRunning = false;
 }
 
 // ===================== QUIZ FUNCTIONS =====================
@@ -278,19 +314,23 @@ function beginQuiz() {
  */
 function startTimer() {
     const timerElement = document.getElementById('timer');
-    
-    setInterval(function() {
+
+    // 🔒 防止重複啟動
+    if (gameState.timerRunning) return;
+
+    gameState.timerRunning = true;
+
+    gameState.timerInterval = setInterval(function () {
         if (gameState.quizActive) {
             const elapsed = Date.now() - gameState.startTime;
             gameState.elapsedTime = elapsed;
-            
-            // 轉換為分:秒.毫秒格式
+
             const totalSeconds = Math.floor(elapsed / 1000);
             const minutes = Math.floor(totalSeconds / 60);
             const seconds = totalSeconds % 60;
-            const milliseconds = Math.floor((elapsed % 1000) / 10); // 毫秒轉為兩位數
-            
-            timerElement.textContent = 
+            const milliseconds = Math.floor((elapsed % 1000) / 10);
+
+            timerElement.textContent =
                 String(minutes).padStart(2, '0') + ':' +
                 String(seconds).padStart(2, '0') + '.' +
                 String(milliseconds).padStart(2, '0');
@@ -367,6 +407,39 @@ function createQuestionElement(question, questionNumber) {
     return block;
 }
 
+
+function showConfirmPopup(message, onConfirm) {
+    const popup = document.getElementById('popup-modal');
+    const text = document.getElementById('popup-text');
+    const btn = document.querySelector('.popup-btn');
+
+    text.innerText = message;
+
+    // 改成確認模式
+    btn.innerText = '確認 / Confirm';
+
+    // 先清掉舊事件
+    btn.onclick = function () {
+        closePopup();
+        if (onConfirm) onConfirm();
+    };
+
+    popup.classList.remove('hidden');
+}
+
+function showMessagePopup(message) {
+    const popup = document.getElementById('popup-modal');
+    const text = document.getElementById('popup-text');
+    const btn = document.querySelector('.popup-btn');
+
+    text.innerText = message;
+
+    btn.innerText = 'OK';
+    btn.onclick = closePopup;
+
+    popup.classList.remove('hidden');
+}
+
 /**
  * 更新計分
  */
@@ -427,7 +500,7 @@ function submitQuiz() {
     
     // 生成排名
     const newEntry = {
-        id: generateEmployeeId(),
+        id: gameState.employeeId || generateEmployeeId(),
         score: gameState.score,
         time: totalTime,
         date: new Date().toLocaleString('zh-TW')
@@ -457,11 +530,26 @@ function submitQuiz() {
  * 關閉測驗 (點擊X按鈕)
  */
 function closeQuiz() {
-    if (confirm('確定要離開測驗嗎？進度將不會被保存。/ Are you sure? Your progress will not be saved.')) {
-        gameState.quizActive = false;
-        gameState.quizStarted = false;
-        backToHome();
-    }
+
+    // 🟡 進入暫停狀態（停止計時更新）
+    pauseTimer();
+
+    showConfirmPopup(
+        '確定要離開測驗嗎？進度將不會被保存。/ Are you sure? Your progress will not be saved.',
+        
+        // ✅ 確認離開
+        function () {
+            gameState.quizActive = false;
+            gameState.quizStarted = false;
+            gameState.timerRunning = false;
+            backToHome();
+        },
+
+        // ❌ 取消 → 繼續遊戲
+        function () {
+            resumeTimer();
+        }
+    );
 }
 
 /**
@@ -678,6 +766,7 @@ function backToHome() {
     gameState.currentQuizPage = 1;
     gameState.answers = {};
     gameState.score = 0;
+    resetTimer(); // ⭐ 加這行
     document.getElementById('score').textContent = '0 / 50';
     document.getElementById('timer').textContent = '00:00.00';
     showPage('home-page');
@@ -725,5 +814,53 @@ function closePopup() {
     const popup = document.getElementById('popup-modal');
     if (popup) {
         popup.classList.add('hidden');
+    }
+}
+
+function showConfirmPopup(message, onConfirm, onCancel) {
+    const popup = document.getElementById('popup-modal');
+    const text = document.getElementById('popup-text');
+    const btnConfirm = document.getElementById('popup-confirm');
+    const btnCancel = document.getElementById('popup-cancel');
+
+    text.innerText = message;
+
+    // 顯示 popup
+    popup.classList.remove('hidden');
+
+    // 清除舊事件（避免重複綁定）
+    btnConfirm.onclick = null;
+    btnCancel.onclick = null;
+
+    // 綁定事件
+    btnConfirm.onclick = function () {
+        closePopup();
+        if (onConfirm) onConfirm();
+    };
+
+    btnCancel.onclick = function () {
+        closePopup();
+        if (onCancel) onCancel();
+    };
+}
+
+function closePopup() {
+    const popup = document.getElementById('popup-modal');
+    popup.classList.add('hidden');
+}
+
+// 點選叉叉 時間暫停
+function pauseTimer() {
+    gameState.quizActive = false;
+}
+
+function resumeTimer() {
+    if (!gameState.quizActive && gameState.startTime) {
+        gameState.quizActive = true;
+
+        // 修正 startTime（避免時間跳掉）
+        gameState.startTime = Date.now() - gameState.elapsedTime;
+
+        startTimer();
     }
 }
