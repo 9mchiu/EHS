@@ -94,8 +94,8 @@
                         <span class="rules-title-en">Game Rules</span>
                     </h2>
                     <p class="rules-text">
-                        歡迎參加2026森林安全計畫小遊戲！<br>
-                        <span class="rules-text-en">Welcome to the 2026 Forest Safety Game!</span>
+                        歡迎參加2026森林安全計畫測驗！<br>
+                        <span class="rules-text-en">Welcome to the 2026 Forest Safety Quiz!</span>
                     </p>
                 </div>
                 
@@ -218,8 +218,8 @@
                             <span class="btn-label-en">Search</span>
                         </button>
                         <button id="btn-export-excel" class="btn btn-export">
-                            匯出紀錄
-                            <span class="btn-label-en">Export Records</span>
+                            匯出 Excel/CSV
+                            <span class="btn-label-en">Export Excel/CSV</span>
                         </button>
                         <button id="btn-back-from-leaderboard" class="btn btn-secondary">
                             返回首頁
@@ -255,7 +255,7 @@
                 <button class="btn btn-modal-close" id="btn-modal-close">✕</button>
                 
                 <!-- 16:9 簡報圖片位置 (暫時使用背景圖，之後更換為宣傳資訊) -->
-                <img src="./background.png" alt="Character Info" class="modal-image">
+                <img id="modal-image" src="" alt="Character Info" class="modal-image">
                 
                 <!-- 字幕區域 (角色對應的宣傳文字) -->
                 <div class="modal-text">
@@ -284,11 +284,12 @@
     <!-- ===================== EMPLOYEE ID MODAL ===================== -->
 <div id="employee-modal" class="modal">
     <div class="modal-content small-modal">
-        <h3>請輸入工號 / Enter Employee ID</h3>
+        <h3>請輸入工號</h3>
         
         <input 
             id="employee-id-input" 
             class="employee-input"
+            placeholder="Enter Employee ID"
         >
         
         <button id="btn-confirm-employee" class="btn btn-primary">
