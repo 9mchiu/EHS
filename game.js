@@ -587,16 +587,16 @@ function searchLeaderboard() {
     const searchInput = document.getElementById('search-rank').value.trim();
     
     if (!searchInput) {
-        alert('請輸入工號 / Please enter Employee ID');
+        showPopup('請輸入工號 / Please enter Employee ID');
         return;
     }
     
     const foundIndex = gameState.leaderboard.findIndex(entry => entry.id === searchInput);
     
     if (foundIndex !== -1) {
-        alert(`您的排名是第 ${foundIndex + 1} 名 / Your rank is #${foundIndex + 1}`);
+        showPopup(`您的排名是第 ${foundIndex + 1} 名 / Your rank is #${foundIndex + 1}`);
     } else {
-        alert('未找到相關記錄 / No record found');
+        showPopup('未找到相關記錄 / No record found');
     }
 }
 
@@ -608,7 +608,7 @@ function exportToExcel() {
     console.log('📥 匯出排行榜資料');
     
     if (gameState.leaderboard.length === 0) {
-        alert('目前沒有排行榜資料可匯出 / No leaderboard data to export');
+        showPopup('目前沒有排行榜資料可匯出 / No leaderboard data to export');
         return;
     }
     
@@ -761,3 +761,21 @@ console.log('  ✅ 排行榜匯出Excel/CSV');
 console.log('  ✅ 角色資訊視窗');
 console.log('  ✅ 背景音樂');
 console.log('  ⏳ Google Sheets 整合（需要後端支援）');
+
+// ===================== POPUP SYSTEM (排行榜查詢彈跳視窗) =====================
+function showPopup(message) {
+    const popup = document.getElementById('popup-modal');
+    const text = document.getElementById('popup-text');
+
+    if (popup && text) {
+        text.innerText = message;
+        popup.classList.remove('hidden');
+    }
+}
+
+function closePopup() {
+    const popup = document.getElementById('popup-modal');
+    if (popup) {
+        popup.classList.add('hidden');
+    }
+}
