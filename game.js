@@ -239,7 +239,7 @@ function downloadPDF() {
     // 實現：創建一個指向PDF的下載連結
     // 這裡需要替換為實際的PDF檔案路徑
     const link = document.createElement('a');
-    link.href = 'assets/EHS-guidelines.pdf'; // 替換為實際PDF路徑
+    link.href = 'EHS-guidelines.pdf'; // 替換為實際PDF路徑
     link.download = 'EHS-Guidelines-2026.pdf';
     document.body.appendChild(link);
     link.click();
