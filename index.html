@@ -266,14 +266,37 @@
     </div>
     
     <!-- ===================== POPUP（排行榜查詢彈跳視窗） ===================== -->
-    <div id="popup-modal" class="popup hidden">
-        <div class="popup-box">
-            <p id="popup-text">訊息</p>
-            <button class="popup-btn" onclick="closePopup()">OK</button>
+<div id="popup-modal" class="popup hidden">
+    <div class="popup-box">
+        <p id="popup-text">訊息</p>
+
+        <div class="popup-actions">
+            <button id="popup-cancel" class="popup-btn secondary">取消 / Cancel</button>
+            <button id="popup-confirm" class="popup-btn primary">確認 / OK</button>
         </div>
     </div>
+</div>
 
     <!-- ===================== SCRIPTS ===================== -->
     <script src="game.js"></script>
+
+    <!-- ===================== EMPLOYEE ID MODAL ===================== -->
+<div id="employee-modal" class="modal">
+    <div class="modal-content small-modal">
+        <h3>請輸入工號 / Enter Employee ID</h3>
+        
+        <input 
+            id="employee-id-input" 
+            class="employee-input"
+            placeholder="例如 EMP0001"
+        >
+        
+        <button id="btn-confirm-employee" class="btn btn-primary">
+            確認 / Confirm
+        </button>
+    </div>
+</div>
+
+
 </body>
 </html>
