@@ -17,7 +17,6 @@ This is an interactive online game platform designed for the "2026 Forest Safety
 - **⏱️ 即時計時系統** - 精確到0.01秒的計時記錄
 - **📊 動態排行榜** - 根據分數和用時自動排序
 - **🎭 角色資訊視窗** - 點擊5個角色查看相關訊息
-- **🎵 背景音樂** - 增強遊戲沉浸感
 - **📱 雙語介面** - 完整的中英文支援（微軟正黑體 + Calibri字體）
 
 ---
@@ -32,7 +31,6 @@ EHS/
 ├── README.md           # 本檔案
 ├── assets/
 │   ├── background.png  # 首頁主視覺背景 (2071 × 1170 pixels)
-│   ├── background-music.mp3  # 背景音樂檔案
 │   └── EHS-guidelines.pdf    # 宣導內容PDF檔案
 └── [其他資源]
 ```
@@ -143,56 +141,6 @@ EHS/
 
 ---
 
-## 🎵 背景音樂設定 / Background Music Setup
-
-### 如何加入音樂
-
-1. **準備音樂檔案**：
-   - 支援格式：`.mp3`, `.wav`, `.ogg`
-   - 建議：`assets/background-music.mp3`
-
-2. **放置位置**：
-   ```
-   assets/
-   └── background-music.mp3
-   ```
-
-3. **音樂已自動集成**在 `game.js` 中，功能為：
-   - 頁面加載時自動播放（受瀏覽器靜音政策限制）
-   - 使用者首次點擊後強制啟動
-   - 整個遊戲過程中持續迴圈播放
-
-### 如何修改音樂設定
-
-在 `game.js` 中，找到 `initializeBackgroundMusic()` 函數：
-
-```javascript
-/**
- * 初始化背景音樂
- * 修改此區塊以自訂音樂行為
- */
-function initializeBackgroundMusic() {
-    const audioElement = document.getElementById('background-music');
-    
-    if (audioElement) {
-        audioElement.loop = true;  // ← 改為 false 關閉迴圈
-        audioElement.volume = 0.5; // ← 設定音量(0-1)
-        
-        // 修改自動播放行為...
-    }
-}
-```
-
-### 音樂相關設定參數
-
-| 參數 | 說明 | 修改位置 |
-|------|------|---------|
-| `loop` | 是否迴圈播放 | `game.js` L18 |
-| `volume` | 音量大小(0-1) | 在 `initializeBackgroundMusic()` 函數中新增 |
-| `src` | 音樂檔案路徑 | `index.html` L343 |
-
----
-
 ## 📊 資料寫入 / Data Integration
 
 ### 排行榜本地存儲
@@ -293,27 +241,11 @@ const characterData = {
 ### JavaScript (`game.js`)
 - ✅ **詳細的函數文件註解**（JSDoc格式）
 - 🎮 全域變數 (GLOBAL VARIABLES)
-- 🎵 背景音樂 (BACKGROUND MUSIC FUNCTIONS)
 - 📍 頁面導航 (PAGE NAVIGATION FUNCTIONS)
 - ❓ 題目渲染 (QUIZ FUNCTIONS)
 - 📊 排行榜 (LEADERBOARD FUNCTIONS)
 - 🎭 角色互動 (CHARACTER MODAL FUNCTIONS)
 - 🛠️ 工具函數 (UTILITY FUNCTIONS)
-
----
-
-## 📝 待辦項目 / TODO List
-
-- [ ] 完成Google Sheets API整合（後端開發）
-- [ ] 製作實際的遊戲規則圖片替換佔位符
-- [ ] 製作5個角色對應的簡報圖片（16:9）
-- [ ] 準備並上傳背景音樂檔案
-- [ ] 製作PDF宣導檔案
-- [ ] 測試不同瀏覽器相容性
-- [ ] 優化行動設備支援（如需要）
-- [ ] 新增音效效果（點擊、提交等）
-- [ ] 實現使用者登入系統（工號驗證）
-- [ ] 新增結果分析儀表板
 
 ---
 
@@ -325,21 +257,6 @@ const characterData = {
 - ✅ Edge 80+
 - ⚠️ IE 11（不建議）
 
----
-
-## 📄 授權 / License
-
-© 2026 Micron Taiwan - EHS Department
-
----
-
-## 📞 聯絡方式 / Contact
-
-如有問題或建議，請聯絡EHS相關部門。
-
-For questions or suggestions, please contact the EHS department.
-
----
 
 ## 🔄 版本記錄 / Version History
 
@@ -348,8 +265,3 @@ For questions or suggestions, please contact the EHS department.
 | v1.0 | 2026-06-07 | 初始版本上線 |
 | - | - | 待更新... |
 
----
-
-**上次更新 / Last Updated**: 2026-06-07
-
-**開發者 / Developer**: EHS Game Development Team
