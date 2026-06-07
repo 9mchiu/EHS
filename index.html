@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026 守護森林安全計畫</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- ===================== CONTAINER ===================== -->
+    <div id="app-container">
+        
+        <!-- ===================== HOME PAGE ===================== -->
+        <!-- 首頁頁面：主視覺背景 + 按鈕區域 -->
+        <div id="home-page" class="page active">
+            <img src="assets/background.png" alt="Background" class="background-image">
+            
+            <!-- 左上角按鈕區域 -->
+            <div class="top-left-buttons">
+                <!-- 宣導內容(all) 按鈕 - 下載PDF -->
+                <button id="btn-download-pdf" class="btn btn-primary">
+                    宣導內容（all）
+                    <span class="btn-label-en">Download All Contents</span>
+                </button>
+                
+                <!-- 排行榜按鈕 -->
+                <button id="btn-leaderboard" class="btn btn-secondary">
+                    排行榜
+                    <span class="btn-label-en">Leaderboard</span>
+                </button>
+            </div>
+            
+            <!-- 主畫面中央開始測驗按鈕 -->
+            <div class="center-button-area">
+                <button id="btn-start-quiz" class="btn btn-start-quiz">
+                    開始測驗
+                    <span class="btn-label-en">Start Quiz</span>
+                </button>
+            </div>
+            
+            <!-- 角色互動熱區 - 滑鼠移過顯示泡泡訊息 -->
+            <!-- 角色1位置 (左上消防員) -->
+            <div class="character-hotspot" data-character="1" style="left: 15%; top: 20%;">
+                <div class="character-bubble">
+                    <p class="bubble-text">點我閱讀<br>消防安全</p>
+                    <p class="bubble-text-en">Click to Read<br>Fire Safety</p>
+                </div>
+            </div>
+            
+            <!-- 角色2位置 (中上安全檢查員) -->
+            <div class="character-hotspot" data-character="2" style="left: 35%; top: 25%;">
+                <div class="character-bubble">
+                    <p class="bubble-text">點我閱讀<br>安全檢查</p>
+                    <p class="bubble-text-en">Click to Read<br>Safety Inspection</p>
+                </div>
+            </div>
+            
+            <!-- 角色3位置 (中間登山隊) -->
+            <div class="character-hotspot" data-character="3" style="left: 50%; top: 35%;">
+                <div class="character-bubble">
+                    <p class="bubble-text">點我閱讀<br>登山安全</p>
+                    <p class="bubble-text-en">Click to Read<br>Mountain Safety</p>
+                </div>
+            </div>
+            
+            <!-- 角色4位置 (右上樹木管理員) -->
+            <div class="character-hotspot" data-character="4" style="left: 65%; top: 25%;">
+                <div class="character-bubble">
+                    <p class="bubble-text">點我閱讀<br>樹木管理</p>
+                    <p class="bubble-text-en">Click to Read<br>Tree Management</p>
+                </div>
+            </div>
+            
+            <!-- 角色5位置 (右下醫療隊) -->
+            <div class="character-hotspot" data-character="5" style="left: 80%; top: 50%;">
+                <div class="character-bubble">
+                    <p class="bubble-text">點我閱讀<br>醫療救援</p>
+                    <p class="bubble-text-en">Click to Read<br>Medical Support</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ===================== GAME RULES PAGE ===================== -->
+        <!-- 遊戲規則頁面：開始測驗後顯示的規則說明 -->
+        <div id="game-rules-page" class="page">
+            <div class="quiz-container">
+                <!-- 規則內容框 -->
+                <div class="rules-content">
+                    <!-- 規則圖片位置 (暫時使用背景圖，之後更換為規則圖) -->
+                    <img src="assets/background.png" alt="Game Rules" class="rules-image">
+                    <h2 class="rules-title">
+                        遊戲規則
+                        <span class="rules-title-en">Game Rules</span>
+                    </h2>
+                    <p class="rules-text">
+                        歡迎參加2026森林安全計畫測驗！<br>
+                        <span class="rules-text-en">Welcome to the 2026 Forest Safety Quiz!</span>
+                    </p>
+                </div>
+                
+                <!-- 同意按鈕 -->
+                <button id="btn-agree-start" class="btn btn-agree">
+                    我同意，開始測驗
+                    <span class="btn-label-en">I Agree, Start Quiz</span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- ===================== QUIZ PAGE ===================== -->
+        <!-- 測驗頁面：顯示題目 + 時間計時 + 計分 -->
+        <div id="quiz-page" class="page">
+            <div class="quiz-wrapper">
+                <!-- 左側時間和分數框 (固定位置，獨立視窗) -->
+                <div class="quiz-sidebar">
+                    <div class="time-score-box">
+                        <div class="time-display">
+                            <label class="time-label">時間 / Time</label>
+                            <div id="timer" class="timer-value">00:00.00</div>
+                        </div>
+                        <div class="score-display">
+                            <label class="score-label">分數 / Score</label>
+                            <div id="score" class="score-value">0 / 50</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 右側測驗主要區域 -->
+                <div class="quiz-main">
+                    <!-- 右上角關閉按鈕 -->
+                    <button id="btn-close-quiz" class="btn btn-close" title="Close">✕</button>
+                    
+                    <!-- 題目區域 (一頁兩題) -->
+                    <div class="questions-container" id="questions-container">
+                        <!-- 題目會透過JavaScript動態生成 -->
+                    </div>
+                    
+                    <!-- 下方導航按鈕 -->
+                    <div class="quiz-navigation">
+                        <button id="btn-prev-page" class="btn btn-nav">
+                            ← 上一頁
+                            <span class="btn-label-en">Previous</span>
+                        </button>
+                        
+                        <div class="page-indicator">
+                            <span id="page-number">1</span> / <span id="total-pages">5</span>
+                        </div>
+                        
+                        <button id="btn-next-page" class="btn btn-nav">
+                            下一頁 →
+                            <span class="btn-label-en">Next</span>
+                        </button>
+                        
+                        <button id="btn-submit-quiz" class="btn btn-submit">
+                            提交
+                            <span class="btn-label-en">Submit</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ===================== QUIZ RESULT PAGE ===================== -->
+        <!-- 測驗結果頁面：顯示分數、時間、排名 -->
+        <div id="quiz-result-page" class="page">
+            <div class="result-overlay">
+                <div class="result-modal">
+                    <h2 class="result-title">
+                        測驗完成！
+                        <span class="result-title-en">Quiz Complete!</span>
+                    </h2>
+                    
+                    <div class="result-content">
+                        <div class="result-item">
+                            <label class="result-label">分數 / Score</label>
+                            <p id="result-score" class="result-value">0 / 50</p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <label class="result-label">用時 / Time Spent</label>
+                            <p id="result-time" class="result-value">00:00.00</p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <label class="result-label">目前排名 / Current Rank</label>
+                            <p id="result-rank" class="result-value">#1</p>
+                        </div>
+                    </div>
+                    
+                    <button id="btn-back-home" class="btn btn-primary">
+                        返回首頁
+                        <span class="btn-label-en">Back to Home</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ===================== LEADERBOARD PAGE ===================== -->
+        <!-- 排行榜頁面：顯示全部排行榜資訊 -->
+        <div id="leaderboard-page" class="page">
+            <div class="leaderboard-container">
+                <!-- 右上角搜尋欄位 -->
+                <div class="leaderboard-header">
+                    <h2 class="leaderboard-title">
+                        排行榜
+                        <span class="leaderboard-title-en">Leaderboard</span>
+                    </h2>
+                    
+                    <div class="leaderboard-controls">
+                        <input 
+                            type="text" 
+                            id="search-rank" 
+                            class="search-input" 
+                            placeholder="搜尋工號 / Search ID"
+                        >
+                        <button id="btn-search" class="btn btn-search">
+                            搜尋
+                            <span class="btn-label-en">Search</span>
+                        </button>
+                        <button id="btn-back-from-leaderboard" class="btn btn-secondary">
+                            返回首頁
+                            <span class="btn-label-en">Back to Home</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 可滾動的排行表單 -->
+                <div class="leaderboard-table-wrapper">
+                    <table class="leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th>排行 / Rank</th>
+                                <th>工號 / Employee ID</th>
+                                <th>分數 / Score</th>
+                                <th>時間 / Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-body">
+                            <!-- 排行榜資料會透過JavaScript動態生成 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ===================== CHARACTER MODAL ===================== -->
+        <!-- 角色資訊視窗：點擊角色頭後顯示的模態框 -->
+        <div id="character-modal" class="modal">
+            <div class="modal-content" id="modal-content-wrapper">
+                <!-- 視窗大小為背景大小的0.7縮放 -->
+                <button class="btn btn-modal-close" id="btn-modal-close">✕</button>
+                
+                <!-- 16:9 簡報圖片位置 (暫時使用背景圖，之後更換為宣傳資訊) -->
+                <img src="assets/background.png" alt="Character Info" class="modal-image">
+                
+                <!-- 字幕區域 (角色對應的宣傳文字) -->
+                <div class="modal-text">
+                    <h3 id="modal-character-name">角色名稱</h3>
+                    <p id="modal-character-description">角色描述</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== BACKGROUND MUSIC ===================== -->
+    <!-- 背景音樂 (自動播放，迴圈播放) -->
+    <audio id="background-music" loop style="display: none;">
+        <source src="assets/background-music.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+
+    <!-- ===================== SCRIPTS ===================== -->
+    <script src="game.js"></script>
+</body>
+</html>
