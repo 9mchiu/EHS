@@ -239,8 +239,8 @@ function downloadPDF() {
     // 實現：創建一個指向PDF的下載連結
     // 這裡需要替換為實際的PDF檔案路徑
     const link = document.createElement('a');
-    link.href = 'EHS-guidelines.pdf'; // 替換為實際PDF路徑
-    link.download = 'EHS-Guidelines-2026.pdf';
+    link.href = 'assets/EHS-guidelines.pdf'; // 替換為實際PDF路徑
+    link.download = 'EHS sharing contents(all).pdf';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -691,24 +691,33 @@ function exportToExcel() {
 function openCharacterModal(characterId) {
     const characterData = {
         1: {
-            name: '消防安全隊 / Fire Safety Team',
-            description: '負責所有消防安全相關訓練和檢查工作。/ Responsible for all fire safety training and inspections.'
+            name: "消防安全",
+            description: "消防安全宣導內容",
+            image: "./ERC.png"
         },
+
         2: {
-            name: '安全檢查隊 / Safety Inspection Team',
-            description: '定期檢查工作場所安全狀況。/ Regularly inspects workplace safety conditions.'
+            name: "安全檢查",
+            description: "安全檢查宣導內容",
+            image: "./Safety.png"
         },
+
         3: {
-            name: '登山安全隊 / Mountain Safety Team',
-            description: '提供登山和户外活動安全指導。/ Provides safety guidance for mountaineering and outdoor activities.'
+            name: "環境保護",
+            description: "環境保護宣導內容",
+            image: "./Env.png"
         },
+
         4: {
-            name: '樹木管理隊 / Tree Management Team',
-            description: '管理樹木和綠地，確保環境安全。/ Manages trees and green spaces for environmental safety.'
+            name: "製程管理",
+            description: "製程管理宣導內容",
+            image: "./PSM.png"
         },
+
         5: {
-            name: '醫療救援隊 / Medical Support Team',
-            description: '提供緊急醫療支援和健康檢查。/ Provides emergency medical support and health checks.'
+            name: "健康保健",
+            description: "健康保健宣導內容",
+            image: "./HC.png"
         }
     };
     
@@ -716,7 +725,10 @@ function openCharacterModal(characterId) {
     if (data) {
         document.getElementById('modal-character-name').textContent = data.name;
         document.getElementById('modal-character-description').textContent = data.description;
-        
+        const modalImage = document.getElementById("modal-image");
+
+        modalImage.src = data.image;
+
         const modal = document.getElementById('character-modal');
         modal.classList.add('active');
         console.log(`🎭 打開角色視窗: 角色 ${characterId}`);
@@ -732,33 +744,6 @@ function closeCharacterModal() {
 }
 
 // ===================== UTILITY FUNCTIONS =====================
-/**
- * 生成工號 (模擬)
- * @returns {string} 工號
- */
-function generateEmployeeId() {
-    // 格式: EMP + 隨機數字
-    const randomNum = Math.floor(Math.random() * 10000);
-    return `EMP${String(randomNum).padStart(4, '0')}`;
-}
-
-/**
- * 寫入Google Sheets (非同步操作)
- * @param {object} entry - 新增項目
- */
-function writeToGoogleSheet(entry) {
-    // 注意: 實際實現需要Google Sheets API + 認證
-    // 目前為示意，需要後端支援
-    console.log('📝 已將結果寫入Google Sheets:', entry);
-    
-    // 實現步驟:
-    // 1. 使用Google Sheets API
-    // 2. 或使用Google Forms自動填表
-    // 3. 或設置後端API代理Google Sheets寫入
-    
-    const sheetsUrl = 'https://docs.google.com/spreadsheets/d/1hu-ETXiYleeRwWAIfsfXYyVkEkrNrCTmh9g_ilh3k0I/edit?gid=0#gid=0';
-    console.log(`🔗 Google Sheets 連結: ${sheetsUrl}`);
-}
 
 /**
  * 返回首頁
