@@ -142,8 +142,6 @@ const quizQuestions = [
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🎮 EHS Game Initialized');
     
-    // 初始化背景音樂
-    initializeBackgroundMusic();
     
     // 綁定所有事件監聽器
     bindEventListeners();
@@ -156,56 +154,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // 顯示首頁
     showPage('home-page');
 });
-
-// ===================== BACKGROUND MUSIC FUNCTIONS =====================
-/**
- * 初始化背景音樂
- * 說明：網頁會自動播放背景音樂（迴圈），使用者可通過F12開發者工具檢查音樂設定
- */
-function initializeBackgroundMusic() {
-    const audioElement = document.getElementById('background-music');
-    
-    if (audioElement) {
-        audioElement.loop = true; // 啟用迴圈播放
-        // 嘗試自動播放（許多瀏覽器會被靜音政策阻止）
-        const playPromise = audioElement.play();
-        
-        if (playPromise !== undefined) {
-            playPromise.catch(error => {
-                console.log('🔇 背景音樂因瀏覽器政策未自動播放。使用者點擊頁面後將自動播放。');
-            });
-        }
-        
-        // 在使用者第一次點擊時啟動音樂
-        document.addEventListener('click', function enableAudio() {
-            if (audioElement.paused) {
-                audioElement.play();
-                console.log('🔊 背景音樂已開始播放');
-            }
-            document.removeEventListener('click', enableAudio);
-        }, { once: true });
-    }
-}
-
-/**
- * 停止背景音樂
- */
-function stopBackgroundMusic() {
-    const audioElement = document.getElementById('background-music');
-    if (audioElement) {
-        audioElement.pause();
-    }
-}
-
-/**
- * 播放背景音樂
- */
-function playBackgroundMusic() {
-    const audioElement = document.getElementById('background-music');
-    if (audioElement && audioElement.paused) {
-        audioElement.play();
-    }
-}
 
 // ===================== EVENT BINDING FUNCTIONS =====================
 /**
