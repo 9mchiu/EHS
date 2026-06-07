@@ -56,7 +56,7 @@ body {
 /* 左上角按鈕區域 */
 .top-left-buttons {
     position: absolute;
-    top: 30px;
+    top: 255px;
     left: 30px;
     z-index: 10;
     display: flex;
@@ -67,7 +67,7 @@ body {
 /* 中央開始測驗按鈕 */
 .center-button-area {
     position: absolute;
-    top: 190px;
+    top: 170px;
     left: 30px;
     z-index: 10;
 }
