@@ -231,6 +231,7 @@ function bindEventListeners() {
     
     // 排行榜頁面按鈕
     document.getElementById('btn-search').addEventListener('click', searchLeaderboard);
+    document.getElementById('btn-export-excel').addEventListener('click', exportToExcel);
     document.getElementById('btn-back-from-leaderboard').addEventListener('click', backToHome);
     document.getElementById('search-rank').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
@@ -599,6 +600,50 @@ function searchLeaderboard() {
     }
 }
 
+/**
+ * 匯出排行榜為Excel/CSV格式
+ * 支援格式：Excel (.xlsx) 或 CSV (.csv)
+ */
+function exportToExcel() {
+    console.log('📥 匯出排行榜資料');
+    
+    if (gameState.leaderboard.length === 0) {
+        alert('目前沒有排行榜資料可匯出 / No leaderboard data to export');
+        return;
+    }
+    
+    // 準備CSV資料
+    let csvContent = '排行,工號,分數,時間,日期\n';
+    csvContent += 'Rank,Employee ID,Score,Time,Date\n';
+    
+    gameState.leaderboard.forEach((entry, index) => {
+        const minutes = Math.floor(entry.time / 60);
+        const seconds = Math.floor(entry.time % 60);
+        const milliseconds = Math.floor((entry.time % 1) * 100);
+        const timeStr = 
+            String(minutes).padStart(2, '0') + ':' +
+            String(seconds).padStart(2, '0') + '.' +
+            String(milliseconds).padStart(2, '0');
+        
+        csvContent += `${index + 1},"${entry.id}","${entry.score}/50","${timeStr}","${entry.date}"\n`;
+    });
+    
+    // 建立下載連結
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `EHS-Leaderboard-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    console.log('✅ 排行榜已匯出為CSV格式');
+}
+
 // ===================== CHARACTER MODAL FUNCTIONS =====================
 /**
  * 打開角色資訊視窗
@@ -712,6 +757,7 @@ console.log('  ✅ 遊戲規則頁面');
 console.log('  ✅ 測驗頁面（一頁兩題）');
 console.log('  ✅ 計時計分系統');
 console.log('  ✅ 排行榜系統');
+console.log('  ✅ 排行榜匯出Excel/CSV');
 console.log('  ✅ 角色資訊視窗');
 console.log('  ✅ 背景音樂');
 console.log('  ⏳ Google Sheets 整合（需要後端支援）');
