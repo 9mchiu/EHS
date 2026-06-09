@@ -13,15 +13,15 @@ window.EHS_CONFIG = {
         // 取得方式：開啟表單 → 預覽(👁) → F12 → 找 <form action="..."> 的網址，
         // 結尾必須是 /formResponse（不是 /viewform）。
         // 範例： https://docs.google.com/forms/d/e/1FAIpQLSxxxxxxxxxxxx/formResponse
-        actionUrl: "https://docs.google.com/forms/d/e/FORM_ID/formResponse",
+        actionUrl: "https://docs.google.com/forms/u/0/d/1vrn_x9F_j8mMda1F16W1c_hZ18Z9R84dk7dCv9hVMco/formResponse",
 
         // 每個欄位對應的 entry 編號。
         // 取得方式：表單預覽頁 → F12 → 找每個 <input name="entry.123456789">。
         entries: {
-            id:    "entry.1111111111", // 工號
-            score: "entry.2222222222", // 分數
-            time:  "entry.3333333333", // 用時（秒，數字）
-            date:  "entry.4444444444", // 作答時間（文字）
+            id:    "entry.360507557", // 工號
+            score: "entry.806547592", // 分數
+            time:  "entry.2122026353", // 用時（秒，數字）
+            date:  "entry.1415036470", // 作答時間（文字）
         },
     },
 
@@ -29,7 +29,7 @@ window.EHS_CONFIG = {
     sheet: {
         // 試算表 ID：網址 .../spreadsheets/d/【這一段】/edit 中間那串。
         // 試算表需設為「知道連結的任何人 → 檢視者」。
-        id: "SHEET_ID",
+        id: "1R5C1Oa5zQxQgc2xXX8rBBsaOiT6s8nWHEEcZiRPj888",
 
         // 工作表（分頁）名稱，通常 Google 表單回應分頁叫「表單回應 1」。
         // 若留空字串則讀取第一個分頁。
