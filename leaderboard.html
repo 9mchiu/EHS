@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -71,6 +70,12 @@ tr:nth-child(even){
     margin-top:20px;
 }
 
+.empty-text{
+    text-align:center;
+    color:#999;
+    padding:30px;
+}
+
 </style>
 </head>
 
@@ -101,30 +106,121 @@ tr:nth-child(even){
 </table>
 
 <p class="refresh-text">
-每10秒自動更新一次
+每 10 秒自動更新一次
 </p>
 
 </div>
 
+<!-- 讀取設定（Google 試算表 ID 等） -->
+<script src="config.js"></script>
+
 <script>
 
-const GAS_URL = '你的AppsScript網址';
+// 把用時（秒）格式化為 mm:ss.xx
+function formatTime(timeInSeconds){
+    const t = Number(timeInSeconds);
+    if(!isFinite(t)) return String(timeInSeconds || '');
+
+    const minutes = Math.floor(t / 60);
+    const seconds = Math.floor(t % 60);
+    const milliseconds = Math.floor((t % 1) * 100);
+
+    return (
+        String(minutes).padStart(2,'0') + ':' +
+        String(seconds).padStart(2,'0') + '.' +
+        String(milliseconds).padStart(2,'0')
+    );
+}
+
+// 解析 gviz 回傳（包著 google.visualization.Query.setResponse(...)）
+function parseGvizResponse(text){
+    const json = text
+        .replace(/^[\s\S]*?setResponse\(/, '')
+        .replace(/\);?\s*$/, '');
+    return JSON.parse(json);
+}
+
+// 抓取某分頁資料表；失敗或查無資料表回傳 null（空字串 = 預設第一個分頁）
+async function fetchGvizTable(sheetId, sheetName){
+    try{
+        let url = 'https://docs.google.com/spreadsheets/d/' + sheetId +
+                  '/gviz/tq?tqx=out:json';
+        if(sheetName) url += '&sheet=' + encodeURIComponent(sheetName);
+
+        const response = await fetch(url);
+        const text = await response.text();
+        const data = parseGvizResponse(text);
+
+        if(!data || !data.table || !data.table.cols) return null;
+        return data.table;
+    }catch(err){
+        return null;
+    }
+}
 
 async function loadLeaderboard(){
 
+    const cfg = window.EHS_CONFIG;
+    const tbody = document.getElementById('leaderboard-body');
+
+    if(!cfg || !cfg.sheet || !cfg.sheet.id || cfg.sheet.id === 'SHEET_ID'){
+        tbody.innerHTML =
+            '<tr><td colspan="5" class="empty-text">尚未設定 Google 試算表（請編輯 config.js）</td></tr>';
+        return;
+    }
+
     try{
 
-        const response = await fetch(
-            GAS_URL + '?action=read'
+        const { id, name, columns } = cfg.sheet;
+
+        // 先用設定的分頁名稱讀取；對不上時退讀預設（第一個）分頁
+        let table = await fetchGvizTable(id, name);
+        if(!table) table = await fetchGvizTable(id, '');
+        if(!table){
+            tbody.innerHTML =
+                '<tr><td colspan="5" class="empty-text">讀取排行榜失敗（請確認分頁名稱與共用權限）</td></tr>';
+            return;
+        }
+
+        const cols = (table.cols || []).map(
+            c => (c.label || '').trim().toLowerCase()
         );
 
-        const data = await response.json();
+        const idxOf = (label, fallback) => {
+            const i = cols.indexOf(String(label || '').trim().toLowerCase());
+            return i >= 0 ? i : fallback;
+        };
 
-        const tbody = document.getElementById('leaderboard-body');
+        const idx = {
+            id:    idxOf(columns.id, 1),
+            score: idxOf(columns.score, 2),
+            time:  idxOf(columns.time, 3),
+            date:  idxOf(columns.date, 4),
+        };
+
+        let rows = (table.rows || []).map(r => {
+            const v = i => (i >= 0 && r.c[i]) ? r.c[i].v : null;
+            const f = i => (i >= 0 && r.c[i]) ? (r.c[i].f != null ? r.c[i].f : r.c[i].v) : null;
+            return {
+                id: v(idx.id),
+                score: Number(v(idx.score)),
+                time: Number(v(idx.time)),
+                date: f(idx.date),
+            };
+        }).filter(item => item.id != null && item.id !== '');
+
+        // 排序：分數高優先，分數相同比時間短
+        rows.sort((a,b) => (b.score - a.score) || (a.time - b.time));
 
         tbody.innerHTML = '';
 
-        data.forEach((item,index)=>{
+        if(rows.length === 0){
+            tbody.innerHTML =
+                '<tr><td colspan="5" class="empty-text">目前還沒有成績資料</td></tr>';
+            return;
+        }
+
+        rows.forEach((item,index)=>{
 
             const tr = document.createElement('tr');
 
@@ -136,13 +232,12 @@ async function loadLeaderboard(){
                 tr.classList.add('rank-3');
             }
 
-            tr.innerHTML = `
-                <td>#${item.rank}</td>
-                <td>${item.id}</td>
-                <td>${item.score}</td>
-                <td>${item.time}</td>
-                <td>${item.date}</td>
-            `;
+            tr.innerHTML =
+                '<td>#' + (index + 1) + '</td>' +
+                '<td>' + item.id + '</td>' +
+                '<td>' + item.score + ' / 50</td>' +
+                '<td>' + formatTime(item.time) + '</td>' +
+                '<td>' + (item.date || '') + '</td>';
 
             tbody.appendChild(tr);
 
@@ -151,6 +246,8 @@ async function loadLeaderboard(){
     }catch(err){
 
         console.error(err);
+        tbody.innerHTML =
+            '<tr><td colspan="5" class="empty-text">讀取排行榜失敗，請稍後再試</td></tr>';
 
     }
 
@@ -158,10 +255,9 @@ async function loadLeaderboard(){
 
 loadLeaderboard();
 
-setInterval(loadLeaderboard,10000);
+setInterval(loadLeaderboard, 10000);
 
 </script>
 
 </body>
 </html>
-```
