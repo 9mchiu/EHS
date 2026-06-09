@@ -111,7 +111,7 @@ tr:nth-child(even){
 
 </div>
 
-<!-- 讀取設定（Google 試算表 ID 等） -->
+<!-- 讀取設定（後端 Worker 網址 api.baseUrl） -->
 <script src="config.js"></script>
 
 <script>
@@ -132,30 +132,18 @@ function formatTime(timeInSeconds){
     );
 }
 
-// 解析 gviz 回傳（包著 google.visualization.Query.setResponse(...)）
-function parseGvizResponse(text){
-    const json = text
-        .replace(/^[\s\S]*?setResponse\(/, '')
-        .replace(/\);?\s*$/, '');
-    return JSON.parse(json);
-}
-
-// 抓取某分頁資料表；失敗或查無資料表回傳 null（空字串 = 預設第一個分頁）
-async function fetchGvizTable(sheetId, sheetName){
-    try{
-        let url = 'https://docs.google.com/spreadsheets/d/' + sheetId +
-                  '/gviz/tq?tqx=out:json';
-        if(sheetName) url += '&sheet=' + encodeURIComponent(sheetName);
-
-        const response = await fetch(url);
-        const text = await response.text();
-        const data = parseGvizResponse(text);
-
-        if(!data || !data.table || !data.table.cols) return null;
-        return data.table;
-    }catch(err){
-        return null;
-    }
+// 從後端（Cloudflare Worker）讀取排行榜
+async function fetchLeaderboard(){
+    const base = window.EHS_CONFIG.api.baseUrl.trim().replace(/\/+$/, '');
+    const res = await fetch(base + '/leaderboard');
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    return (Array.isArray(data) ? data : []).map(item => ({
+        id: item.id,
+        score: Number(item.score),
+        time: Number(item.time),
+        date: item.date,
+    })).filter(item => item.id != null && item.id !== '');
 }
 
 async function loadLeaderboard(){
@@ -163,51 +151,16 @@ async function loadLeaderboard(){
     const cfg = window.EHS_CONFIG;
     const tbody = document.getElementById('leaderboard-body');
 
-    if(!cfg || !cfg.sheet || !cfg.sheet.id || cfg.sheet.id === 'SHEET_ID'){
+    const baseUrl = (cfg && cfg.api && cfg.api.baseUrl) ? cfg.api.baseUrl.trim() : '';
+    if(!/^https?:\/\//.test(baseUrl)){
         tbody.innerHTML =
-            '<tr><td colspan="5" class="empty-text">尚未設定 Google 試算表（請編輯 config.js）</td></tr>';
+            '<tr><td colspan="5" class="empty-text">尚未設定後端網址（請編輯 config.js 的 api.baseUrl）</td></tr>';
         return;
     }
 
     try{
 
-        const { id, name, columns } = cfg.sheet;
-
-        // 先用設定的分頁名稱讀取；對不上時退讀預設（第一個）分頁
-        let table = await fetchGvizTable(id, name);
-        if(!table) table = await fetchGvizTable(id, '');
-        if(!table){
-            tbody.innerHTML =
-                '<tr><td colspan="5" class="empty-text">讀取排行榜失敗（請確認分頁名稱與共用權限）</td></tr>';
-            return;
-        }
-
-        const cols = (table.cols || []).map(
-            c => (c.label || '').trim().toLowerCase()
-        );
-
-        const idxOf = (label, fallback) => {
-            const i = cols.indexOf(String(label || '').trim().toLowerCase());
-            return i >= 0 ? i : fallback;
-        };
-
-        const idx = {
-            id:    idxOf(columns.id, 1),
-            score: idxOf(columns.score, 2),
-            time:  idxOf(columns.time, 3),
-            date:  idxOf(columns.date, 4),
-        };
-
-        let rows = (table.rows || []).map(r => {
-            const v = i => (i >= 0 && r.c[i]) ? r.c[i].v : null;
-            const f = i => (i >= 0 && r.c[i]) ? (r.c[i].f != null ? r.c[i].f : r.c[i].v) : null;
-            return {
-                id: v(idx.id),
-                score: Number(v(idx.score)),
-                time: Number(v(idx.time)),
-                date: f(idx.date),
-            };
-        }).filter(item => item.id != null && item.id !== '');
+        const rows = await fetchLeaderboard();
 
         // 排序：分數高優先，分數相同比時間短
         rows.sort((a,b) => (b.score - a.score) || (a.time - b.time));
@@ -232,12 +185,19 @@ async function loadLeaderboard(){
                 tr.classList.add('rank-3');
             }
 
-            tr.innerHTML =
-                '<td>#' + (index + 1) + '</td>' +
-                '<td>' + item.id + '</td>' +
-                '<td>' + item.score + ' / 50</td>' +
-                '<td>' + formatTime(item.time) + '</td>' +
-                '<td>' + (item.date || '') + '</td>';
+            // 用 textContent 填入使用者資料（工號/日期），避免 XSS
+            const cells = [
+                '#' + (index + 1),
+                item.id,
+                item.score + ' / 50',
+                formatTime(item.time),
+                item.date || '',
+            ];
+            cells.forEach(value => {
+                const td = document.createElement('td');
+                td.textContent = value;
+                tr.appendChild(td);
+            });
 
             tbody.appendChild(tr);
 

@@ -1,0 +1,11 @@
+name = "ehs-leaderboard"
+main = "worker.js"
+compatibility_date = "2024-09-01"
+
+# KV 綁定：程式裡用 env.EHS 存取。
+# 先在 Cloudflare 建立一個 KV namespace，再把它的 id 填到下方 id="..."。
+#   CLI 建立： npx wrangler kv namespace create EHS
+#   （建立後 wrangler 會印出一段 id，貼進來即可）
+kv_namespaces = [
+  { binding = "EHS", id = "在這裡填入你的 KV namespace id" }
+]
