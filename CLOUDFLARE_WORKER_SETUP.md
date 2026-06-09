@@ -25,9 +25,10 @@
 
 ---
 
-## 部署（用 wrangler 指令列，DO 建議用此法）
+## 方式 A：用 wrangler 部署（建立 DO 必用，推薦）
 
-> Durable Object 首次部署需套用 migration（建立 DO 類別），用 `wrangler deploy` 會自動依 `wrangler.toml` 的 `[[migrations]]` 處理，最省事。需先安裝 Node.js。
+> ⚠️ 為什麼 DO 沒有「純後台點一點」的部署法？
+> SQLite-backed Durable Object 的**類別必須在「初次部署」時透過 wrangler 的 migration（`new_sqlite_classes`）建立**，且官方規定「不能對既有的 DO 類別事後改成 SQLite」。後台無法可靠地完成這個初次建立，所以 **DO 的第一次部署一定要用 wrangler**（之後的維護、查資料可以在後台做，見方式 B）。需先安裝 Node.js。
 
 在 `worker/` 目錄下操作：
 
@@ -58,6 +59,20 @@ new_sqlite_classes = ["Leaderboard"]
 ```
 
 部署完成後 wrangler 會印出 `*.workers.dev` 網址。
+
+---
+
+## 方式 B：Cloudflare 後台（部署後的維護與查資料）
+
+> DO 的**初次建立**請用方式 A；**部署完成後**，下面這些都能在後台 GUI 操作，不必再碰指令。
+
+1. **查看 / 進入 Worker**：<https://dash.cloudflare.com> → **Workers & Pages** → 點 `ehs-leaderboard`。可看到對外網址、請求用量、錯誤記錄（Logs）。
+2. **改程式**：Worker 頁 → **Edit code**（`</> Quick edit`）→ 改 `worker.js` → **Deploy**。
+   - ⚠️ 注意：只「改邏輯」可以；若要**新增/變更 DO 類別**仍須回方式 A 用 wrangler 跑 migration。
+3. **查 / 改 / 清空排行榜資料**：**Storage & Databases → Durable Objects** → 選到 `Leaderboard` namespace → **Data Studio**。
+   - 可用表格/SQL 瀏覽、編輯、刪除資料（只有 SQLite-backed DO 能用 Data Studio）。
+   - 適合：賽後查成績、手動修正某筆、活動前**清空重置**排行榜。
+4. **鎖定來源（CORS）**：要只允許自家網域，回方式 A 把 `worker.js` 的 `CORS` 由 `'*'` 改成你的網址後重新 `wrangler deploy`。
 
 ---
 
