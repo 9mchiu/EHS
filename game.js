@@ -17,8 +17,7 @@ let gameState = {
     confirmExitCallback: null,
 };
 
-// Google Sheets API URL (需替換為實際的Web App URL)
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxbWER1QFu0BT8sj7HX1j8WHRX3tDg4-N9avSXeGg4ej_cGaf3NCsLN9NLB8y883p0o3A/exec";
+// Google Form 寫入 / Google Sheet 讀取設定來自 config.js (window.EHS_CONFIG)
 
 // 模擬題目資料 (之後可連接到後端API)
 const quizQuestions = [
@@ -513,8 +512,8 @@ function submitQuiz() {
 
     localStorage.setItem('leaderboard', JSON.stringify(gameState.leaderboard));
 
-    // ❌ 先關掉（避免未定義炸掉）
-    // writeToGoogleSheet(newEntry);
+    // 透過 Google 表單寫入（fire-and-forget，不阻塞結果頁顯示）
+    submitToGoogleForm(newEntry);
 
     // 計算排名（唯一版本）
     const rank = gameState.leaderboard.findIndex(
@@ -595,9 +594,18 @@ function showQuizResult(score, time, rank) {
 async function showLeaderboard() {
     console.log('📊 開啟排行榜');
 
-    // ❌ 先不要抓 Google Sheet（避免炸掉）
+    // 先用本機資料即時顯示，避免等待網路
     renderLeaderboardTable();
     showPage('leaderboard-page');
+
+    // 若已設定 Google 後端，改用試算表的最新資料覆蓋顯示
+    if (isGoogleBackendEnabled()) {
+        const remote = await fetchLeaderboardFromSheet();
+        if (remote && remote.length) {
+            gameState.leaderboard = remote;
+            renderLeaderboardTable();
+        }
+    }
 }
 
 /**
@@ -813,7 +821,7 @@ console.log('  ✅ 排行榜系統');
 console.log('  ✅ 排行榜匯出Excel/CSV');
 console.log('  ✅ 角色資訊視窗');
 console.log('  ✅ 背景音樂');
-console.log('  ⏳ Google Sheets 整合（需要後端支援）');
+console.log('  ✅ Google 表單寫入 / 試算表讀取（見 config.js）');
 
 // ===================== POPUP SYSTEM (排行榜查詢彈跳視窗) =====================
 function showPopup(message, onOk) {
@@ -884,45 +892,129 @@ function resumeTimer() {
     }
 }
 
-async function writeToGoogleSheet(entry) {
-    try {
-        const payload = {
-            action: "add",
-            id: entry.id,
-            score: entry.score,
-            time: entry.time,
-            date: entry.date
-        };
+// ===================== GOOGLE FORM / SHEET 資料讀寫 =====================
 
-        await fetch(GAS_WEB_APP_URL, {
-            method: "POST",
-            mode: "no-cors", // ⚠️ GAS 常用設定
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(payload)
+/**
+ * 判斷 config.js 是否已正確填寫（未填則退回 localStorage）
+ * @returns {boolean}
+ */
+function isGoogleBackendEnabled() {
+    const c = window.EHS_CONFIG;
+    if (!c || !c.form || !c.sheet) return false;
+
+    const formReady =
+        typeof c.form.actionUrl === 'string' &&
+        c.form.actionUrl.includes('/formResponse') &&
+        !c.form.actionUrl.includes('FORM_ID');
+
+    const sheetReady =
+        typeof c.sheet.id === 'string' &&
+        c.sheet.id.length > 0 &&
+        c.sheet.id !== 'SHEET_ID';
+
+    return formReady && sheetReady;
+}
+
+/**
+ * 透過 HTTP POST 把一筆成績寫入 Google 表單（連動的試算表會自動收到）。
+ * 使用 no-cors：瀏覽器不會讀到回應，但資料會成功送出。
+ * @param {{id:string, score:number, time:number, date:string}} entry
+ * @returns {Promise<boolean>} 是否送出成功
+ */
+async function submitToGoogleForm(entry) {
+    if (!isGoogleBackendEnabled()) {
+        console.warn('⚠️ 尚未設定 Google 表單（config.js），略過寫入，僅存本機。');
+        return false;
+    }
+
+    try {
+        const { actionUrl, entries } = window.EHS_CONFIG.form;
+
+        const body = new URLSearchParams();
+        body.append(entries.id, entry.id);
+        body.append(entries.score, entry.score);
+        body.append(entries.time, entry.time);
+        body.append(entries.date, entry.date);
+
+        await fetch(actionUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString(),
         });
 
-        console.log("✅ 已寫入 Google Sheet");
+        console.log('✅ 已透過 Google 表單寫入成績');
+        return true;
     } catch (err) {
-        console.error("❌ 寫入 Google Sheet 失敗", err);
+        console.error('❌ 寫入 Google 表單失敗', err);
+        return false;
     }
 }
 
-async function fetchLeaderboardFromGoogle() {
-    try {
-        const res = await fetch(GAS_WEB_APP_URL + "?action=get");
-        const data = await res.json();
+/**
+ * 解析 gviz 回傳的內容（會包著 google.visualization.Query.setResponse(...)）
+ * @param {string} text
+ * @returns {object} 解析後的 JSON
+ */
+function parseGvizResponse(text) {
+    const json = text
+        .replace(/^[\s\S]*?setResponse\(/, '')
+        .replace(/\);?\s*$/, '');
+    return JSON.parse(json);
+}
 
-        // 轉換格式（確保跟你本地一致）
-        return data.map(item => ({
-            id: item.id,
-            score: Number(item.score),
-            time: Number(item.time),
-            date: item.date
-        }));
+/**
+ * 從 Google 試算表（gviz JSON）讀取排行榜資料。
+ * 試算表需設為「知道連結的任何人 → 檢視者」。
+ * @returns {Promise<Array<{id:string,score:number,time:number,date:string}>|null>}
+ */
+async function fetchLeaderboardFromSheet() {
+    if (!isGoogleBackendEnabled()) return null;
+
+    try {
+        const { id, name, columns } = window.EHS_CONFIG.sheet;
+
+        let url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json`;
+        if (name) url += `&sheet=${encodeURIComponent(name)}`;
+
+        const res = await fetch(url);
+        const text = await res.text();
+        const data = parseGvizResponse(text);
+
+        const cols = (data.table.cols || []).map(
+            col => (col.label || '').trim().toLowerCase()
+        );
+
+        // 依標題列文字找出每個欄位的索引；找不到則用位置預設
+        const idxOf = (label, fallback) => {
+            const i = cols.indexOf(String(label || '').trim().toLowerCase());
+            return i >= 0 ? i : fallback;
+        };
+        const idx = {
+            id:    idxOf(columns.id, 1),
+            score: idxOf(columns.score, 2),
+            time:  idxOf(columns.time, 3),
+            date:  idxOf(columns.date, 4),
+        };
+
+        const rows = (data.table.rows || []).map(r => {
+            const v = i => (i >= 0 && r.c[i]) ? r.c[i].v : null;
+            const f = i => (i >= 0 && r.c[i]) ? (r.c[i].f != null ? r.c[i].f : r.c[i].v) : null;
+            return {
+                id: v(idx.id),
+                score: Number(v(idx.score)),
+                time: Number(v(idx.time)),
+                date: f(idx.date),
+            };
+        }).filter(item => item.id != null && item.id !== '');
+
+        // 排序：分數高優先，分數相同比時間短
+        rows.sort((a, b) => (b.score - a.score) || (a.time - b.time));
+
+        console.log(`✅ 已從 Google 試算表讀取 ${rows.length} 筆排行榜資料`);
+        return rows;
     } catch (err) {
-        console.error("❌ 讀取 Google Sheet 失敗", err);
+        console.error('❌ 讀取 Google 試算表失敗', err);
         return null;
     }
 }
