@@ -63,7 +63,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 16px;
-    width: clamp(260px, 34vw, 360px);
+    width: clamp(240px, 50vw, 360px);
 }
 
 /* 選單內所有按鈕等寬撐滿容器 */
@@ -841,15 +841,6 @@ body {
     }
 }
 
-
-/* 小螢幕（手機）：選單置中、加寬好點按，按鈕仍等寬、不重疊 */
-@media (max-width: 768px) {
-    .home-menu {
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: min(82vw, 380px);
-    }
-}
 
 /* ===================== LOADING & ANIMATION ===================== */
 @keyframes fadeIn {
