@@ -1,0 +1,167 @@
+```html
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>排行榜 Leaderboard</title>
+
+<style>
+
+body{
+    margin:0;
+    padding:40px;
+    background:#f4fff6;
+    font-family:"Microsoft JhengHei",sans-serif;
+}
+
+.container{
+    max-width:1000px;
+    margin:auto;
+    background:white;
+    border-radius:20px;
+    padding:30px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.1);
+}
+
+h1{
+    text-align:center;
+    color:#2d6a4f;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:30px;
+}
+
+th{
+    background:#2d6a4f;
+    color:white;
+    padding:14px;
+}
+
+td{
+    padding:14px;
+    border-bottom:1px solid #ddd;
+    text-align:center;
+}
+
+tr:nth-child(even){
+    background:#f7f7f7;
+}
+
+.rank-1{
+    background:#ffe066 !important;
+    font-weight:bold;
+}
+
+.rank-2{
+    background:#dee2e6 !important;
+}
+
+.rank-3{
+    background:#ffd8a8 !important;
+}
+
+.refresh-text{
+    text-align:center;
+    color:#666;
+    margin-top:20px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>
+🏆 排行榜 Leaderboard
+</h1>
+
+<table>
+
+<thead>
+<tr>
+<th>排名 Rank</th>
+<th>工號 Employee ID</th>
+<th>分數 Score</th>
+<th>時間 Time</th>
+<th>日期 Date</th>
+</tr>
+</thead>
+
+<tbody id="leaderboard-body">
+
+</tbody>
+
+</table>
+
+<p class="refresh-text">
+每10秒自動更新一次
+</p>
+
+</div>
+
+<script>
+
+const GAS_URL = '你的AppsScript網址';
+
+async function loadLeaderboard(){
+
+    try{
+
+        const response = await fetch(
+            GAS_URL + '?action=read'
+        );
+
+        const data = await response.json();
+
+        const tbody = document.getElementById('leaderboard-body');
+
+        tbody.innerHTML = '';
+
+        data.forEach((item,index)=>{
+
+            const tr = document.createElement('tr');
+
+            if(index===0){
+                tr.classList.add('rank-1');
+            }else if(index===1){
+                tr.classList.add('rank-2');
+            }else if(index===2){
+                tr.classList.add('rank-3');
+            }
+
+            tr.innerHTML = `
+                <td>#${item.rank}</td>
+                <td>${item.id}</td>
+                <td>${item.score}</td>
+                <td>${item.time}</td>
+                <td>${item.date}</td>
+            `;
+
+            tbody.appendChild(tr);
+
+        });
+
+    }catch(err){
+
+        console.error(err);
+
+    }
+
+}
+
+loadLeaderboard();
+
+setInterval(loadLeaderboard,10000);
+
+</script>
+
+</body>
+</html>
+```
