@@ -14,10 +14,9 @@ let gameState = {
     timerRunning: false,
     timerInterval: null,
     leaderboard: JSON.parse(localStorage.getItem('leaderboard')) || [],
-    confirmExitCallback: null,
 };
 
-// Google Form 寫入 / Google Sheet 讀取設定來自 config.js (window.EHS_CONFIG)
+// 後端 API（Cloudflare Worker）設定來自 config.js (window.EHS_CONFIG)
 
 // 模擬題目資料 (之後可連接到後端API)
 const quizQuestions = [
@@ -143,6 +142,12 @@ const quizQuestions = [
     }
 ];
 
+// 一頁兩題 → 依題數自動計算總頁數（避免日後改題數時錯位）
+gameState.totalQuizPages = Math.ceil(quizQuestions.length / 2);
+
+// 背景音樂檔路徑（留空字串 = 不播放）。要啟用就填音檔路徑，例如 './bgm.mp3'
+const BG_MUSIC_SRC = '';
+
 // ===================== INITIALIZATION =====================
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🎮 EHS Game Initialized');
@@ -151,9 +156,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 綁定所有事件監聽器
     bindEventListeners();
     
-    // 初始化排行榜資料（僅在未啟用 Google 後端時才載入示例資料，
-    // 啟用後一律以 Google 試算表為唯一資料來源）
-    if (!isGoogleBackendEnabled() && gameState.leaderboard.length === 0) {
+    // 初始化排行榜資料（僅在未啟用後端 API 時才載入示例資料，
+    // 啟用後一律以後端為唯一資料來源）
+    if (!isRemoteBackendEnabled() && gameState.leaderboard.length === 0) {
         loadSampleLeaderboardData();
     }
     
@@ -253,7 +258,7 @@ function downloadPDF() {
     // 實現：創建一個指向PDF的下載連結
     // 這裡需要替換為實際的PDF檔案路徑
     const link = document.createElement('a');
-    link.href = 'assets/EHS-guidelines.pdf'; // 替換為實際PDF路徑
+    link.href = './EHS-guidelines.pdf';
     link.download = 'EHS sharing contents(all).pdf';
     document.body.appendChild(link);
     link.click();
@@ -424,19 +429,6 @@ function createQuestionElement(question, questionNumber) {
 
 
 
-function showMessagePopup(message) {
-    const popup = document.getElementById('popup-modal');
-    const text = document.getElementById('popup-text');
-    const btn = document.querySelector('.popup-btn');
-
-    text.innerText = message;
-
-    btn.innerText = 'OK';
-    btn.onclick = closePopup;
-
-    popup.classList.remove('hidden');
-}
-
 /**
  * 更新計分
  */
@@ -457,9 +449,16 @@ function updateScore() {
 function updateNavigationButtons() {
     const prevBtn = document.getElementById('btn-prev-page');
     const nextBtn = document.getElementById('btn-next-page');
-    
-    prevBtn.disabled = gameState.currentQuizPage === 1;
-    nextBtn.disabled = gameState.currentQuizPage === gameState.totalQuizPages;
+    const submitBtn = document.getElementById('btn-submit-quiz');
+
+    const isFirst = gameState.currentQuizPage === 1;
+    const isLast = gameState.currentQuizPage === gameState.totalQuizPages;
+
+    prevBtn.disabled = isFirst;
+
+    // 最後一頁才顯示「提交」，其餘頁顯示「下一頁」
+    nextBtn.style.display = isLast ? 'none' : '';
+    if (submitBtn) submitBtn.style.display = isLast ? '' : 'none';
 }
 
 /**
@@ -487,10 +486,23 @@ function nextQuizPage() {
 /**
  * 提交測驗
  */
-function submitQuiz() {
+async function submitQuiz() {
     console.log('📤 提交測驗');
 
+    // 檢查是否每題都已作答
+    const unanswered = quizQuestions.filter(
+        q => gameState.answers[q.id] === undefined
+    );
+    if (unanswered.length > 0) {
+        showPopup(
+            `還有 ${unanswered.length} 題未作答，請全部作答後再提交。\n` +
+            `You still have ${unanswered.length} unanswered question(s).`
+        );
+        return;
+    }
+
     gameState.quizActive = false;
+    resetTimer(); // 停止計時器（避免閒置 interval 持續觸發）
     updateScore();
 
     const totalTime = gameState.elapsedTime / 1000;
@@ -502,26 +514,51 @@ function submitQuiz() {
         date: new Date().toLocaleString('zh-TW')
     };
 
-    // 存 leaderboard
+    // 本機備份（離線/讀取失敗時的後備）
     gameState.leaderboard.push(newEntry);
-
-    // 排序
-    gameState.leaderboard.sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        return a.time - b.time;
-    });
-
+    gameState.leaderboard.sort((a, b) => (b.score - a.score) || (a.time - b.time));
     localStorage.setItem('leaderboard', JSON.stringify(gameState.leaderboard));
 
-    // 透過 Google 表單寫入（fire-and-forget，不阻塞結果頁顯示）
-    submitToGoogleForm(newEntry);
+    // 透過後端 API 寫入（fire-and-forget）
+    submitToRemote(newEntry);
 
-    // 計算排名（唯一版本）
-    const rank = gameState.leaderboard.findIndex(
-        e => e.id === newEntry.id && e.time === newEntry.time
-    ) + 1;
+    // 計算名次（優先以後端全體資料為準）
+    const rank = await computeRank(newEntry);
 
     showQuizResult(gameState.score, totalTime, rank);
+}
+
+/**
+ * 計算名次：若已啟用後端 API，用後端全體資料併入本次成績後排序；
+ * 否則用本機資料。
+ * @param {{id:string, score:number, time:number}} entry
+ * @returns {Promise<number>} 名次（1 起算）
+ */
+async function computeRank(entry) {
+    let board = gameState.leaderboard;
+
+    if (isRemoteBackendEnabled()) {
+        const remote = await fetchLeaderboardFromRemote();
+        if (remote) {
+            board = remote.slice();
+            // 後端（KV 邊緣節點）可能還沒同步剛送出的這筆 → 手動併入再排序
+            const exists = board.some(e =>
+                e.id === entry.id &&
+                Number(e.time) === Number(entry.time) &&
+                Number(e.score) === Number(entry.score)
+            );
+            if (!exists) board.push(entry);
+            board.sort((a, b) => (b.score - a.score) || (a.time - b.time));
+        }
+    }
+
+    const rank = board.findIndex(e =>
+        e.id === entry.id &&
+        Number(e.time) === Number(entry.time) &&
+        Number(e.score) === Number(entry.score)
+    ) + 1;
+
+    return rank > 0 ? rank : board.length;
 }
 
     
@@ -570,18 +607,9 @@ function closeQuiz() {
  * @param {number} rank - 排名
  */
 function showQuizResult(score, time, rank) {
-    // 格式化時間
-    const minutes = Math.floor(time / 60);
-    const seconds = Math.floor(time % 60);
-    const milliseconds = Math.floor((time % 1) * 100);
-    const timeStr = 
-        String(minutes).padStart(2, '0') + ':' +
-        String(seconds).padStart(2, '0') + '.' +
-        String(milliseconds).padStart(2, '0');
-    
     // 更新結果顯示
     document.getElementById('result-score').textContent = `${score} / 50`;
-    document.getElementById('result-time').textContent = timeStr;
+    document.getElementById('result-time').textContent = formatTime(time);
     document.getElementById('result-rank').textContent = `#${rank}`;
     
     // 顯示結果頁面
@@ -597,24 +625,24 @@ async function showLeaderboard() {
 
     showPage('leaderboard-page');
 
-    if (isGoogleBackendEnabled()) {
-        // Google 試算表為唯一資料來源
+    if (isRemoteBackendEnabled()) {
+        // 後端 API 為唯一資料來源
         const tbody = document.getElementById('leaderboard-body');
         if (tbody) {
             tbody.innerHTML =
                 '<tr><td colspan="4" style="text-align:center;color:#999;">讀取中… / Loading…</td></tr>';
         }
 
-        const remote = await fetchLeaderboardFromSheet();
+        const remote = await fetchLeaderboardFromRemote();
         if (remote) {
-            // 讀取成功（即使 0 筆也以試算表為準）
+            // 讀取成功（即使 0 筆也以後端為準）
             gameState.leaderboard = remote;
         } else {
-            console.warn('⚠️ 讀取試算表失敗，暫時顯示本機資料');
+            console.warn('⚠️ 讀取後端失敗，暫時顯示本機資料');
         }
         renderLeaderboardTable();
     } else {
-        // 未設定 Google 後端：使用本機資料
+        // 未設定後端 API：使用本機資料
         renderLeaderboardTable();
     }
 }
@@ -625,25 +653,24 @@ async function showLeaderboard() {
 function renderLeaderboardTable() {
     const tbody = document.getElementById('leaderboard-body');
     tbody.innerHTML = '';
-    
+
     gameState.leaderboard.forEach((entry, index) => {
         const row = document.createElement('tr');
-        
-        const minutes = Math.floor(entry.time / 60);
-        const seconds = Math.floor(entry.time % 60);
-        const milliseconds = Math.floor((entry.time % 1) * 100);
-        const timeStr = 
-            String(minutes).padStart(2, '0') + ':' +
-            String(seconds).padStart(2, '0') + '.' +
-            String(milliseconds).padStart(2, '0');
-        
-        row.innerHTML = `
-            <td>${index + 1}</td>
-            <td>${entry.id}</td>
-            <td>${entry.score} / 50</td>
-            <td>${timeStr}</td>
-        `;
-        
+
+        // 使用 textContent 而非 innerHTML，避免工號/日期含 HTML 造成 XSS
+        const cells = [
+            String(index + 1),
+            entry.id,
+            `${entry.score} / 50`,
+            formatTime(entry.time),
+        ];
+
+        cells.forEach(value => {
+            const td = document.createElement('td');
+            td.textContent = value;
+            row.appendChild(td);
+        });
+
         tbody.appendChild(row);
     });
 }
@@ -690,16 +717,12 @@ function exportToExcel() {
     let csvContent = '排行,工號,分數,時間,日期\n';
     csvContent += 'Rank,Employee ID,Score,Time,Date\n';
     
+    // 跳脫 CSV 內的雙引號（"" 代表一個 "），避免工號/日期含引號破壞欄位
+    const csvCell = v => String(v == null ? '' : v).replace(/"/g, '""');
+
     gameState.leaderboard.forEach((entry, index) => {
-        const minutes = Math.floor(entry.time / 60);
-        const seconds = Math.floor(entry.time % 60);
-        const milliseconds = Math.floor((entry.time % 1) * 100);
-        const timeStr = 
-            String(minutes).padStart(2, '0') + ':' +
-            String(seconds).padStart(2, '0') + '.' +
-            String(milliseconds).padStart(2, '0');
-        
-        csvContent += `${index + 1},"${entry.id}","${entry.score}/50","${timeStr}","${entry.date}"\n`;
+        const timeStr = formatTime(entry.time);
+        csvContent += `${index + 1},"${csvCell(entry.id)}","${entry.score}/50","${timeStr}","${csvCell(entry.date)}"\n`;
     });
     
     // 建立下載連結
@@ -801,10 +824,41 @@ function backToHome() {
     gameState.currentQuizPage = 1;
     gameState.answers = {};
     gameState.score = 0;
-    resetTimer(); // ⭐ 加這行
+    resetTimer();
+    stopBackgroundMusic();
     document.getElementById('score').textContent = '0 / 50';
     document.getElementById('timer').textContent = '00:00.00';
     showPage('home-page');
+}
+
+// ===================== BACKGROUND MUSIC =====================
+/**
+ * 播放背景音樂。需在 BG_MUSIC_SRC 設定音檔路徑才會播放；
+ * 未設定則靜默略過，瀏覽器自動播放被拒時也以 catch 吞掉。
+ */
+function playBackgroundMusic() {
+    const audio = document.getElementById('bg-music');
+    if (!audio) return;
+
+    if (BG_MUSIC_SRC && !audio.getAttribute('src')) {
+        audio.src = BG_MUSIC_SRC;
+    }
+    if (!audio.getAttribute('src')) return; // 尚未設定音檔，略過
+
+    const p = audio.play();
+    if (p && typeof p.catch === 'function') {
+        p.catch(() => console.info('ℹ️ 背景音樂需使用者互動後才能播放'));
+    }
+}
+
+/**
+ * 停止背景音樂並歸零。
+ */
+function stopBackgroundMusic() {
+    const audio = document.getElementById('bg-music');
+    if (!audio) return;
+    audio.pause();
+    audio.currentTime = 0;
 }
 
 /**
@@ -832,21 +886,23 @@ console.log('  ✅ 排行榜系統');
 console.log('  ✅ 排行榜匯出Excel/CSV');
 console.log('  ✅ 角色資訊視窗');
 console.log('  ✅ 背景音樂');
-console.log('  ✅ Google 表單寫入 / 試算表讀取（見 config.js）');
+console.log('  ✅ 後端 API 成績寫入 / 排行榜讀取（見 config.js）');
 
 // ===================== POPUP SYSTEM (排行榜查詢彈跳視窗) =====================
 function showPopup(message, onOk) {
     const popup = document.getElementById('popup-modal');
     const text = document.getElementById('popup-text');
     const btn = document.getElementById('popup-confirm');
+    const btnCancel = document.getElementById('popup-cancel');
 
     if (!popup || !text || !btn) return;
 
     text.innerText = message;
     popup.classList.remove('hidden');
 
-    // 清掉舊事件，避免累積
-    btn.onclick = null;
+    // 單鈕模式：隱藏取消鈕
+    if (btnCancel) btnCancel.style.display = 'none';
+    btn.innerText = '確認 / OK';
 
     btn.onclick = function () {
         closePopup();
@@ -861,25 +917,26 @@ function showConfirmPopup(message, onConfirm, onCancel) {
     const btnConfirm = document.getElementById('popup-confirm');
     const btnCancel = document.getElementById('popup-cancel');
 
-    text.innerText = message;
+    if (!popup || !text || !btnConfirm) return;
 
-    // 顯示 popup
+    text.innerText = message;
     popup.classList.remove('hidden');
 
-    // 清除舊事件（避免重複綁定）
-    btnConfirm.onclick = null;
-    btnCancel.onclick = null;
+    // 雙鈕模式：顯示取消鈕
+    if (btnCancel) btnCancel.style.display = '';
+    btnConfirm.innerText = '確認 / OK';
 
-    // 綁定事件
     btnConfirm.onclick = function () {
         closePopup();
         if (onConfirm) onConfirm();
     };
 
-    btnCancel.onclick = function () {
-        closePopup();
-        if (onCancel) onCancel();
-    };
+    if (btnCancel) {
+        btnCancel.onclick = function () {
+            closePopup();
+            if (onCancel) onCancel();
+        };
+    }
 }
 
 function closePopup() {
@@ -903,157 +960,89 @@ function resumeTimer() {
     }
 }
 
-// ===================== GOOGLE FORM / SHEET 資料讀寫 =====================
+// ===================== 後端 API（Cloudflare Worker）資料讀寫 =====================
 
 /**
- * 判斷 config.js 是否已正確填寫（未填則退回 localStorage）
+ * 判斷 config.js 是否已填好後端網址（未填則退回 localStorage）。
  * @returns {boolean}
  */
-function isGoogleBackendEnabled() {
+function isRemoteBackendEnabled() {
     const c = window.EHS_CONFIG;
-    if (!c || !c.form || !c.sheet) return false;
+    if (!c || !c.api) return false;
+    const url = c.api.baseUrl;
+    return typeof url === 'string' && /^https?:\/\//.test(url.trim());
+}
 
-    const formReady =
-        typeof c.form.actionUrl === 'string' &&
-        c.form.actionUrl.includes('/formResponse') &&
-        !c.form.actionUrl.includes('FORM_ID');
-
-    const sheetReady =
-        typeof c.sheet.id === 'string' &&
-        c.sheet.id.length > 0 &&
-        c.sheet.id !== 'SHEET_ID';
-
-    return formReady && sheetReady;
+/** 取得去除尾端斜線的後端網址。 */
+function apiBaseUrl() {
+    return window.EHS_CONFIG.api.baseUrl.trim().replace(/\/+$/, '');
 }
 
 /**
- * 透過 HTTP POST 把一筆成績寫入 Google 表單（連動的試算表會自動收到）。
- * 使用 no-cors：瀏覽器不會讀到回應，但資料會成功送出。
+ * 透過 HTTP POST 把一筆成績寫入後端（Cloudflare Worker → KV）。
+ * 後端回傳正常 CORS，因此可由回應碼確認是否成功。
  * @param {{id:string, score:number, time:number, date:string}} entry
- * @returns {Promise<boolean>} 是否送出成功
+ * @returns {Promise<boolean>} 是否寫入成功
  */
-async function submitToGoogleForm(entry) {
-    if (!isGoogleBackendEnabled()) {
-        console.warn('⚠️ 尚未設定 Google 表單（config.js），略過寫入，僅存本機。');
+async function submitToRemote(entry) {
+    if (!isRemoteBackendEnabled()) {
+        console.warn('⚠️ 尚未設定後端網址（config.js），略過寫入，僅存本機。');
         return false;
     }
 
     try {
-        const { actionUrl, entries } = window.EHS_CONFIG.form;
-
-        const body = new URLSearchParams();
-        body.append(entries.id, entry.id);
-        body.append(entries.score, entry.score);
-        body.append(entries.time, entry.time);
-        body.append(entries.date, entry.date);
-
-        await fetch(actionUrl, {
+        const res = await fetch(`${apiBaseUrl()}/submit`, {
             method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: body.toString(),
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: entry.id,
+                score: entry.score,
+                time: entry.time,
+                date: entry.date,
+            }),
         });
 
-        // ⚠️ no-cors 模式讀不到回應狀態，無法確認真的寫入成功。
-        // 若 Console 另有出現 formResponse 的 4xx/5xx 紅字，代表其實失敗
-        // （最常見：actionUrl 用到 /forms/u/0/d/.../formResponse 會回 401，
-        //  正確應為 /forms/d/e/1FAIpQLS.../formResponse）。請以試算表是否新增資料為準。
-        console.log('📤 已送出成績到 Google 表單（no-cors 無法確認結果，請至試算表檢查）');
+        if (!res.ok) {
+            console.error(`❌ 寫入後端失敗（HTTP ${res.status}）`);
+            return false;
+        }
+        console.log('✅ 已透過後端 API 寫入成績');
         return true;
     } catch (err) {
-        console.error('❌ 寫入 Google 表單失敗', err);
+        console.error('❌ 寫入後端失敗', err);
         return false;
     }
 }
 
 /**
- * 解析 gviz 回傳的內容（會包著 google.visualization.Query.setResponse(...)）
- * @param {string} text
- * @returns {object} 解析後的 JSON
- */
-function parseGvizResponse(text) {
-    const json = text
-        .replace(/^[\s\S]*?setResponse\(/, '')
-        .replace(/\);?\s*$/, '');
-    return JSON.parse(json);
-}
-
-/**
- * 向 gviz 端點抓取某一分頁的資料表；失敗或查無資料表時回傳 null。
- * @param {string} sheetId 試算表 ID
- * @param {string} sheetName 分頁名稱（空字串 = 預設第一個分頁）
- * @returns {Promise<object|null>} gviz 的 table 物件
- */
-async function fetchGvizTable(sheetId, sheetName) {
-    try {
-        let url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json`;
-        if (sheetName) url += `&sheet=${encodeURIComponent(sheetName)}`;
-
-        const res = await fetch(url);
-        const text = await res.text();
-        const data = parseGvizResponse(text);
-
-        if (!data || !data.table || !data.table.cols) return null;
-        return data.table;
-    } catch (err) {
-        return null;
-    }
-}
-
-/**
- * 從 Google 試算表（gviz JSON）讀取排行榜資料。
- * 試算表需設為「知道連結的任何人 → 檢視者」。
+ * 從後端（Cloudflare Worker）讀取排行榜資料。
  * @returns {Promise<Array<{id:string,score:number,time:number,date:string}>|null>}
  */
-async function fetchLeaderboardFromSheet() {
-    if (!isGoogleBackendEnabled()) return null;
+async function fetchLeaderboardFromRemote() {
+    if (!isRemoteBackendEnabled()) return null;
 
     try {
-        const { id, name, columns } = window.EHS_CONFIG.sheet;
-
-        // 先用設定的分頁名稱讀取；若分頁名稱對不上（gviz 回 error），
-        // 退而求其次讀預設（第一個）分頁。
-        let table = await fetchGvizTable(id, name);
-        if (!table) table = await fetchGvizTable(id, '');
-        if (!table) {
-            console.error('❌ 讀取 Google 試算表失敗：找不到資料表（請確認分頁名稱與共用權限）');
+        const res = await fetch(`${apiBaseUrl()}/leaderboard`);
+        if (!res.ok) {
+            console.error(`❌ 讀取後端排行榜失敗（HTTP ${res.status}）`);
             return null;
         }
 
-        const cols = (table.cols || []).map(
-            col => (col.label || '').trim().toLowerCase()
-        );
+        const data = await res.json();
+        const rows = (Array.isArray(data) ? data : []).map(item => ({
+            id: item.id,
+            score: Number(item.score),
+            time: Number(item.time),
+            date: item.date,
+        })).filter(item => item.id != null && item.id !== '');
 
-        // 依標題列文字找出每個欄位的索引；找不到則用位置預設
-        const idxOf = (label, fallback) => {
-            const i = cols.indexOf(String(label || '').trim().toLowerCase());
-            return i >= 0 ? i : fallback;
-        };
-        const idx = {
-            id:    idxOf(columns.id, 1),
-            score: idxOf(columns.score, 2),
-            time:  idxOf(columns.time, 3),
-            date:  idxOf(columns.date, 4),
-        };
-
-        const rows = (table.rows || []).map(r => {
-            const v = i => (i >= 0 && r.c[i]) ? r.c[i].v : null;
-            const f = i => (i >= 0 && r.c[i]) ? (r.c[i].f != null ? r.c[i].f : r.c[i].v) : null;
-            return {
-                id: v(idx.id),
-                score: Number(v(idx.score)),
-                time: Number(v(idx.time)),
-                date: f(idx.date),
-            };
-        }).filter(item => item.id != null && item.id !== '');
-
-        // 排序：分數高優先，分數相同比時間短
+        // 排序：分數高優先，分數相同比時間短（後端已排序，這裡保險再排一次）
         rows.sort((a, b) => (b.score - a.score) || (a.time - b.time));
 
-        console.log(`✅ 已從 Google 試算表讀取 ${rows.length} 筆排行榜資料`);
+        console.log(`✅ 已從後端讀取 ${rows.length} 筆排行榜資料`);
         return rows;
     } catch (err) {
-        console.error('❌ 讀取 Google 試算表失敗', err);
+        console.error('❌ 讀取後端排行榜失敗', err);
         return null;
     }
 }
