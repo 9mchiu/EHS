@@ -313,6 +313,7 @@ function startQuizAfterEmployee() {
     gameState.score = 0;
 
     renderQuizQuestions();
+    updateProgress(); // 重置側欄作答進度為 0
     showPage('quiz-page');
 
     // 🔥 只有這裡才啟動 timer
@@ -420,7 +421,8 @@ function createQuestionElement(question, questionNumber) {
             const questionId = parseInt(this.name.split('-')[1]);
             gameState.answers[questionId] = parseInt(this.value);
 
-            updateScore();
+            // 只更新「作答進度」，不即時計分（避免盯著分數反推答案作弊）
+            updateProgress();
         });
     });
     
@@ -430,9 +432,11 @@ function createQuestionElement(question, questionNumber) {
 
 
 /**
- * 更新計分
+ * 計算目前總分（純計算、不更新畫面）。
+ * 作答期間不顯示分數，避免玩家盯著分數變化反推正確答案。
+ * @returns {number} 總分
  */
-function updateScore() {
+function calculateScore() {
     let score = 0;
     quizQuestions.forEach(question => {
         if (gameState.answers[question.id] === question.correct) {
@@ -440,7 +444,18 @@ function updateScore() {
         }
     });
     gameState.score = score;
-    document.getElementById('score').textContent = `${score} / 50`;
+    return score;
+}
+
+/**
+ * 更新側欄「作答進度」（已作答題數 / 總題數），不洩漏分數。
+ */
+function updateProgress() {
+    const answered = quizQuestions.filter(
+        q => gameState.answers[q.id] !== undefined
+    ).length;
+    const el = document.getElementById('score');
+    if (el) el.textContent = `${answered} / ${quizQuestions.length}`;
 }
 
 /**
@@ -503,7 +518,7 @@ async function submitQuiz() {
 
     gameState.quizActive = false;
     resetTimer(); // 停止計時器（避免閒置 interval 持續觸發）
-    updateScore();
+    calculateScore(); // 交卷時才真正計分
 
     const totalTime = gameState.elapsedTime / 1000;
 
@@ -826,7 +841,7 @@ function backToHome() {
     gameState.score = 0;
     resetTimer();
     stopBackgroundMusic();
-    document.getElementById('score').textContent = '0 / 50';
+    document.getElementById('score').textContent = `0 / ${quizQuestions.length}`;
     document.getElementById('timer').textContent = '00:00.00';
     showPage('home-page');
 }
