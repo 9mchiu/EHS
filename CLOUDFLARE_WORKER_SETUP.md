@@ -30,6 +30,9 @@
 > ⚠️ 為什麼 DO 沒有「純後台點一點」的部署法？
 > SQLite-backed Durable Object 的**類別必須在「初次部署」時透過 wrangler 的 migration（`new_sqlite_classes`）建立**，且官方規定「不能對既有的 DO 類別事後改成 SQLite」。後台無法可靠地完成這個初次建立，所以 **DO 的第一次部署一定要用 wrangler**（之後的維護、查資料可以在後台做，見方式 B）。需先安裝 Node.js。
 
+> ❌ **不需要建立 KV namespace**：DO 版用 Durable Object 儲存，**不要**再跑 `wrangler kv namespace create`。
+> 若你照舊教學跑了它、看到 `A KV namespace with the title "EHS" already exists`，忽略即可，不影響部署。
+
 在 `worker/` 目錄下操作：
 
 ```bash
@@ -38,7 +41,7 @@ cd worker
 # 1. 登入 Cloudflare（會開瀏覽器授權）
 npx wrangler login
 
-# 2. 部署（會自動套用 wrangler.toml 內的 DO 綁定與 migration）
+# 2. 部署（會自動套用 wrangler.toml 內的 DO 綁定與 migration；不需先建任何資源）
 npx wrangler deploy
 ```
 
