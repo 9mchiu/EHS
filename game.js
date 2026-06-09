@@ -1,10 +1,10 @@
-GAS_WEB_APP// ===================== GLOBAL VARIABLES =====================
+// ===================== GLOBAL VARIABLES =====================
+// 遊戲狀態管理
 let gameState = {
     currentPage: 'home',
     employeeId: null,
     quizStarted: false,
     quizActive: false,
-    alreadySubmitted: false,
     currentQuizPage: 1,
     totalQuizPages: 5,
     answers: {},
@@ -13,21 +13,18 @@ let gameState = {
     elapsedTime: 0,
     timerRunning: false,
     timerInterval: null,
-    leaderboard: [],  // ✅ 移除 localStorage 載入，改由 Google Sheet 管理
+    leaderboard: JSON.parse(localStorage.getItem('leaderboard')) || [],
+    confirmExitCallback: null,
 };
 
-// ===================== Google Apps Script 設定區 =====================
-// 🔧 請將下方 URL 替換為你部署的 Google Apps Script Web App URL
-const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxbWER1QFu0BT8sj7HX1j8WHRX3tDg4-N9avSXeGg4ej_cGaf3NCsLN9NLB8y883p0o3A/exec';
+// Google Sheets API URL (需替換為實際的Web App URL)
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxbWER1QFu0BT8sj7HX1j8WHRX3tDg4-N9avSXeGg4ej_cGaf3NCsLN9NLB8y883p0o3A/exec";
 
-// 🔧 請將下方 URL 替換為你的排行榜網頁網址
-const LEADERBOARD_PAGE_URL = 'leaderboard.html'; // 或填入完整網址如 'https://yoursite.com/leaderboard.html'
-
-// ===================== 題目資料 =====================
+// 模擬題目資料 (之後可連接到後端API)
 const quizQuestions = [
     {
         id: 1,
-        text: "下列何者是最重要的安全防護措施?",
+        text: "下列何者是最重要的安全防護措施？",
         textEn: "Which of the following is the most important safety measure?",
         options: [
             { text: "正確戴著安全帽", textEn: "Wearing a hard hat correctly" },
@@ -39,7 +36,7 @@ const quizQuestions = [
     },
     {
         id: 2,
-        text: "發生緊急情況時,應該立即通知誰?",
+        text: "發生緊急情況時，應該立即通知誰？",
         textEn: "Who should be notified immediately in case of emergency?",
         options: [
             { text: "直屬主管", textEn: "Direct supervisor" },
@@ -51,7 +48,7 @@ const quizQuestions = [
     },
     {
         id: 3,
-        text: "個人防護裝備（PPE）應該在何時使用?",
+        text: "個人防護裝備(PPE)應該在何時使用？",
         textEn: "When should Personal Protective Equipment (PPE) be used?",
         options: [
             { text: "工作開始前", textEn: "Before starting work" },
@@ -63,129 +60,786 @@ const quizQuestions = [
     },
     {
         id: 4,
-        text: "在高空作業時，安全繩的檢查頻率應該是?",
+        text: "在高空作業時，安全繩的檢查頻率應該是？",
         textEn: "How often should safety ropes be checked during high-altitude work?",
         options: [
             { text: "每週一次", textEn: "Once a week" },
             { text: "每月一次", textEn: "Once a month" },
             { text: "使用前檢查", textEn: "Before each use" },
-            { text: "每季一次", textEn: "Once a quarter" }
+            { text: "每年一次", textEn: "Once a year" }
         ],
         correct: 2
     },
     {
         id: 5,
-        text: "工作場所噪音超過幾分貝需配戴防護具?",
-        textEn: "At what decibel level is hearing protection required in the workplace?",
+        text: "工作環境不安全時應該採取什麼行動？",
+        textEn: "What action should be taken if the work environment is unsafe?",
         options: [
-            { text: "70 分貝", textEn: "70 decibels" },
-            { text: "80 分貝", textEn: "80 decibels" },
-            { text: "85 分貝", textEn: "85 decibels" },
-            { text: "90 分貝", textEn: "90 decibels" }
+            { text: "繼續工作", textEn: "Continue working" },
+            { text: "停止工作並報告", textEn: "Stop work and report" },
+            { text: "自行修復", textEn: "Fix it yourself" },
+            { text: "忽視問題", textEn: "Ignore the issue" }
         ],
-        correct: 2
+        correct: 1
+    },
+    {
+        id: 6,
+        text: "安全訓練的主要目的是？",
+        textEn: "What is the main purpose of safety training?",
+        options: [
+            { text: "滿足法規要求", textEn: "Meet regulatory requirements" },
+            { text: "預防工作傷害", textEn: "Prevent workplace injuries" },
+            { text: "提高工作效率", textEn: "Improve work efficiency" },
+            { text: "降低成本", textEn: "Reduce costs" }
+        ],
+        correct: 1
+    },
+    {
+        id: 7,
+        text: "發現有毒物質洩漏時，應該首先？",
+        textEn: "What should be done first when discovering a hazardous substance leak?",
+        options: [
+            { text: "清理洩漏物", textEn: "Clean up the spill" },
+            { text: "疏散人員到安全地點", textEn: "Evacuate personnel to a safe location" },
+            { text: "通知管理層", textEn: "Notify management" },
+            { text: "查找原因", textEn: "Find the cause" }
+        ],
+        correct: 1
+    },
+    {
+        id: 8,
+        text: "工作場所消防安全的重要性是？",
+        textEn: "What is the importance of workplace fire safety?",
+        options: [
+            { text: "保護財產", textEn: "Protect property" },
+            { text: "保護人員生命安全", textEn: "Protect personnel lives" },
+            { text: "維持營運", textEn: "Maintain operations" },
+            { text: "滿足保險要求", textEn: "Meet insurance requirements" }
+        ],
+        correct: 1
+    },
+    {
+        id: 9,
+        text: "工作中感到不適時應該？",
+        textEn: "What should be done if you feel unwell during work?",
+        options: [
+            { text: "繼續工作直到下班", textEn: "Continue working until end of shift" },
+            { text: "立即報告主管", textEn: "Report to supervisor immediately" },
+            { text: "自行決定是否就醫", textEn: "Decide yourself whether to see a doctor" },
+            { text: "告訴同事", textEn: "Tell colleagues" }
+        ],
+        correct: 1
+    },
+    {
+        id: 10,
+        text: "定期安全檢查的頻率應為？",
+        textEn: "What should be the frequency of regular safety inspections?",
+        options: [
+            { text: "每年一次", textEn: "Once a year" },
+            { text: "每季一次", textEn: "Once a quarter" },
+            { text: "每月至少一次", textEn: "At least once a month" },
+            { text: "依組織規定", textEn: "As per organization policy" }
+        ],
+        correct: 3
     }
 ];
 
 // ===================== INITIALIZATION =====================
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', function() {
     console.log('🎮 EHS Game Initialized');
+    
+    
+    // 綁定所有事件監聽器
     bindEventListeners();
+    
+    // 初始化排行榜資料
+    if (gameState.leaderboard.length === 0) {
+        loadSampleLeaderboardData();
+    }
+    
+    // 顯示首頁
     showPage('home-page');
 });
 
-// ===================== EVENT BINDING =====================
+// ===================== EVENT BINDING FUNCTIONS =====================
+/**
+ * 綁定所有DOM事件監聽器
+ */
 function bindEventListeners() {
+    // 首頁按鈕
     document.getElementById('btn-download-pdf').addEventListener('click', downloadPDF);
-
-    // ✅ 排行榜按鈕：開啟另一個排行榜網頁
-    document.getElementById('btn-leaderboard').addEventListener('click', openLeaderboardPage);
-
+    document.getElementById('btn-leaderboard').addEventListener('click', showLeaderboard);
+    document.getElementById('btn-event-schedule').addEventListener('click', openEventModal);
     document.getElementById('btn-start-quiz').addEventListener('click', startQuiz);
-    document.getElementById('btn-schedule').addEventListener('click', openScheduleModal);
-
-    document.getElementById('btn-schedule-close').addEventListener('click', closeScheduleModal);
-    document.getElementById('schedule-modal').addEventListener('click', function (e) {
-        if (e.target === this) closeScheduleModal();
-    });
-
+    
+    // 遊戲規則頁面按鈕
     document.getElementById('btn-agree-start').addEventListener('click', beginQuiz);
+    document.getElementById('btn-close-rules').addEventListener('click', backToHome);
+    // 輸入工號
     document.getElementById('btn-confirm-employee').addEventListener('click', confirmEmployeeId);
-
+    // 測驗頁面按鈕
     document.getElementById('btn-close-quiz').addEventListener('click', closeQuiz);
     document.getElementById('btn-prev-page').addEventListener('click', previousQuizPage);
     document.getElementById('btn-next-page').addEventListener('click', nextQuizPage);
     document.getElementById('btn-submit-quiz').addEventListener('click', submitQuiz);
+    
+    // 結果頁面按鈕
+    document.getElementById('btn-back-home').addEventListener('click', backToHome);
+    
+    // 排行榜頁面按鈕
+    document.getElementById('btn-search').addEventListener('click', searchLeaderboard);
+    document.getElementById('btn-export-excel').addEventListener('click', exportToExcel);
+    document.getElementById('btn-back-from-leaderboard').addEventListener('click', backToHome);
+    document.getElementById('search-rank').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            searchLeaderboard();
+        }
+    });
+    
+    // 模態框關閉按鈕
+    document.getElementById('btn-close-event-modal')
+        .addEventListener('click', closeEventModal);
 
-    const btnBackHome = document.getElementById('btn-back-home');
-    if (btnBackHome) btnBackHome.addEventListener('click', backToHome);
-
+    document.getElementById('event-modal')
+        .addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEventModal();
+            }
+        });
     document.getElementById('btn-modal-close').addEventListener('click', closeCharacterModal);
+    
+    // 角色熱區點擊事件
     document.querySelectorAll('.character-hotspot').forEach(hotspot => {
-        hotspot.addEventListener('click', function () {
-            openCharacterModal(this.dataset.character);
+        hotspot.addEventListener('click', function() {
+            const characterId = this.dataset.character;
+            openCharacterModal(characterId);
         });
     });
-    document.getElementById('character-modal').addEventListener('click', function (e) {
-        if (e.target === this) closeCharacterModal();
+    
+    // 點擊模態框背景時關閉
+    document.getElementById('character-modal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeCharacterModal();
+        }
     });
-
-    const btnMsgOk = document.getElementById('msg-popup-ok');
-    if (btnMsgOk) btnMsgOk.addEventListener('click', closeMsgPopup);
 }
 
-// ===================== PAGE NAVIGATION =====================
+// ===================== PAGE NAVIGATION FUNCTIONS =====================
+/**
+ * 顯示指定頁面
+ * @param {string} pageId - 頁面ID
+ */
 function showPage(pageId) {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    const target = document.getElementById(pageId);
-    if (target) {
-        target.classList.add('active');
+    // 隱藏所有頁面
+    document.querySelectorAll('.page').forEach(page => {
+        page.classList.remove('active');
+    });
+    
+    // 顯示指定頁面
+    const targetPage = document.getElementById(pageId);
+    if (targetPage) {
+        targetPage.classList.add('active');
         gameState.currentPage = pageId;
         console.log(`📄 已切換至頁面: ${pageId}`);
     }
 }
 
-// ===================== 排行榜：開啟外部網頁 =====================
+// ===================== HOME PAGE FUNCTIONS =====================
 /**
- * ✅ 點擊排行榜按鈕後，開啟獨立的排行榜網頁（新分頁）
+ * 下載PDF文件
  */
-function openLeaderboardPage() {
-    window.open(LEADERBOARD_PAGE_URL, '_blank');
+function downloadPDF() {
+    console.log('📥 下載PDF: 宣導內容(all)');
+    // 實現：創建一個指向PDF的下載連結
+    // 這裡需要替換為實際的PDF檔案路徑
+    const link = document.createElement('a');
+    link.href = 'assets/EHS-guidelines.pdf'; // 替換為實際PDF路徑
+    link.download = 'EHS sharing contents(all).pdf';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 
-// ===================== Google Apps Script 整合 =====================
 /**
- * ✅ 寫入成績到 Google Sheet（透過 Google Apps Script Web App）
- * @param {object} entry - 成績資料
+ * 開始測驗流程
  */
-function writeToGoogleSheet(entry) {
-    if (!GAS_WEB_APP_URL || GAS_WEB_APP_URL.includes('YOUR_SCRIPT_ID')) {
-        console.warn('⚠️ 尚未設定 Google Apps Script URL，跳過雲端寫入');
+function startQuiz() {
+    console.log('🎬 使用者點擊「開始測驗」');
+    gameState.quizStarted = true;
+    showPage('game-rules-page');
+    playBackgroundMusic();
+}
+
+/**
+ * 開始計時並顯示第一頁題目
+ */
+function beginQuiz() {
+    console.log('✅ 使用者同意規則 → 開啟工號輸入');
+
+    const modal = document.getElementById('employee-modal');
+    modal.classList.add('active');
+}
+
+function confirmEmployeeId() {
+    const input = document.getElementById('employee-id-input');
+    const id = input.value.trim();
+
+    if (!id) {
+        alert('請輸入工號');
         return;
     }
 
-    const params = new URLSearchParams({
-        action: 'write',
-        id: entry.id,
-        score: entry.score,
-        time: entry.time,
-        timeStr: entry.timeStr,
-        date: entry.date
+    gameState.employeeId = id;
+
+    // 關閉 modal
+    document.getElementById('employee-modal').classList.remove('active');
+
+    // 👉 這裡才開始遊戲
+    startQuizAfterEmployee();
+}
+
+function startQuizAfterEmployee() {
+    console.log('🎬 開始測驗（正式）');
+
+    gameState.quizActive = true;
+    gameState.startTime = Date.now();
+    gameState.currentQuizPage = 1;
+    gameState.answers = {};
+    gameState.score = 0;
+
+    renderQuizQuestions();
+    showPage('quiz-page');
+
+    // 🔥 只有這裡才啟動 timer
+    startTimer();
+}
+
+function resetTimer() {
+    if (gameState.timerInterval) {
+        clearInterval(gameState.timerInterval);
+        gameState.timerInterval = null;
+    }
+    gameState.timerRunning = false;
+}
+
+// ===================== QUIZ FUNCTIONS =====================
+/**
+ * 啟動計時器
+ */
+function startTimer() {
+    const timerElement = document.getElementById('timer');
+
+    // 🔒 防止重複啟動
+    if (gameState.timerRunning) return;
+
+    gameState.timerRunning = true;
+
+    gameState.timerInterval = setInterval(function () {
+        if (gameState.quizActive) {
+            const elapsed = Date.now() - gameState.startTime;
+            gameState.elapsedTime = elapsed;
+
+            const totalSeconds = Math.floor(elapsed / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            const milliseconds = Math.floor((elapsed % 1000) / 10);
+
+            timerElement.textContent =
+                String(minutes).padStart(2, '0') + ':' +
+                String(seconds).padStart(2, '0') + '.' +
+                String(milliseconds).padStart(2, '0');
+        }
+    }, 10);
+}
+
+/**
+ * 渲染測驗題目（一頁兩題）
+ */
+function renderQuizQuestions() {
+    const container = document.getElementById('questions-container');
+    container.innerHTML = '';
+    
+    // 計算當前頁面顯示的題目索引
+    const startIndex = (gameState.currentQuizPage - 1) * 2;
+    const endIndex = Math.min(startIndex + 2, quizQuestions.length);
+    
+    // 顯示題目
+    for (let i = startIndex; i < endIndex; i++) {
+        const question = quizQuestions[i];
+        const questionBlock = createQuestionElement(question, i + 1);
+        container.appendChild(questionBlock);
+    }
+    
+    // 更新頁面指示器
+    document.getElementById('page-number').textContent = gameState.currentQuizPage;
+    document.getElementById('total-pages').textContent = gameState.totalQuizPages;
+    
+    // 更新導航按鈕狀態
+    updateNavigationButtons();
+}
+
+/**
+ * 創建題目元素
+ * @param {object} question - 題目資料
+ * @param {number} questionNumber - 題號
+ * @returns {HTMLElement}
+ */
+function createQuestionElement(question, questionNumber) {
+    const block = document.createElement('div');
+    block.className = 'question-block';
+    
+    let optionsHTML = '';
+    question.options.forEach((option, index) => {
+        const isChecked = gameState.answers[question.id] === index ? 'checked' : '';
+        optionsHTML += `
+            <label class="option">
+                <input type="radio" name="question-${question.id}" value="${index}" ${isChecked}>
+                <span class="option-text">${String.fromCharCode(65 + index)}. ${option.text}</span>
+                <span class="option-text-en">${option.textEn}</span>
+            </label>
+        `;
+    });
+    
+    block.innerHTML = `
+        <div class="question-number">第 ${questionNumber} 題 / Question ${questionNumber}</div>
+        <div class="question-text">${question.text}</div>
+        <div class="question-text-en">${question.textEn}</div>
+        <div class="question-options">
+            ${optionsHTML}
+        </div>
+    `;
+    
+    // 綁定選項變更事件
+    block.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const questionId = parseInt(this.name.split('-')[1]);
+            gameState.answers[questionId] = parseInt(this.value);
+
+            updateScore();
+        });
+    });
+    
+    return block;
+}
+
+
+
+function showMessagePopup(message) {
+    const popup = document.getElementById('popup-modal');
+    const text = document.getElementById('popup-text');
+    const btn = document.querySelector('.popup-btn');
+
+    text.innerText = message;
+
+    btn.innerText = 'OK';
+    btn.onclick = closePopup;
+
+    popup.classList.remove('hidden');
+}
+
+/**
+ * 更新計分
+ */
+function updateScore() {
+    let score = 0;
+    quizQuestions.forEach(question => {
+        if (gameState.answers[question.id] === question.correct) {
+            score += 5;
+        }
+    });
+    gameState.score = score;
+    document.getElementById('score').textContent = `${score} / 50`;
+}
+
+/**
+ * 更新導航按鈕狀態
+ */
+function updateNavigationButtons() {
+    const prevBtn = document.getElementById('btn-prev-page');
+    const nextBtn = document.getElementById('btn-next-page');
+    
+    prevBtn.disabled = gameState.currentQuizPage === 1;
+    nextBtn.disabled = gameState.currentQuizPage === gameState.totalQuizPages;
+}
+
+/**
+ * 上一頁
+ */
+function previousQuizPage() {
+    if (gameState.currentQuizPage > 1) {
+        gameState.currentQuizPage--;
+        renderQuizQuestions();
+        document.getElementById('questions-container').scrollTop = 0;
+    }
+}
+
+/**
+ * 下一頁
+ */
+function nextQuizPage() {
+    if (gameState.currentQuizPage < gameState.totalQuizPages) {
+        gameState.currentQuizPage++;
+        renderQuizQuestions();
+        document.getElementById('questions-container').scrollTop = 0;
+    }
+}
+
+/**
+ * 提交測驗
+ */
+function submitQuiz() {
+    console.log('📤 提交測驗');
+
+    gameState.quizActive = false;
+    updateScore();
+
+    const totalTime = gameState.elapsedTime / 1000;
+
+    const newEntry = {
+        id: gameState.employeeId,
+        score: gameState.score,
+        time: totalTime,
+        date: new Date().toLocaleString('zh-TW')
+    };
+
+    // 存 leaderboard
+    gameState.leaderboard.push(newEntry);
+
+    // 排序
+    gameState.leaderboard.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return a.time - b.time;
     });
 
-    fetch(`${GAS_WEB_APP_URL}?${params.toString()}`, {
-        method: 'GET',
-        mode: 'no-cors'  // Google Apps Script 需要 no-cors
-    })
-    .then(() => {
-        console.log('✅ 成績已送出至 Google Sheet');
-    })
-    .catch(err => {
-        console.warn('⚠️ Google Sheet 寫入錯誤:', err);
+    localStorage.setItem('leaderboard', JSON.stringify(gameState.leaderboard));
+
+    // ❌ 先關掉（避免未定義炸掉）
+    // writeToGoogleSheet(newEntry);
+
+    // 計算排名（唯一版本）
+    const rank = gameState.leaderboard.findIndex(
+        e => e.id === newEntry.id && e.time === newEntry.time
+    ) + 1;
+
+    showQuizResult(gameState.score, totalTime, rank);
+}
+
+    // 計算排名
+    const sorted = [...gameState.leaderboard].sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return a.time - b.time;
+    });
+
+    const rank = sorted.findIndex(
+        e => e.id === newEntry.id && e.time === newEntry.time
+    ) + 1;
+        
+
+    // 顯示結果
+    showQuizResult(gameState.score, totalTime, rank);
+    
+function formatTime(timeInSeconds) {
+    const minutes = Math.floor(timeInSeconds / 60);
+    const seconds = Math.floor(timeInSeconds % 60);
+    const milliseconds = Math.floor((timeInSeconds % 1) * 100);
+
+    return (
+        String(minutes).padStart(2, '0') + ':' +
+        String(seconds).padStart(2, '0') + '.' +
+        String(milliseconds).padStart(2, '0')
+    );
+}
+
+/**
+ * 關閉測驗 (點擊X按鈕)
+ */
+function closeQuiz() {
+
+    // 🟡 進入暫停狀態（停止計時更新）
+    pauseTimer();
+
+    showConfirmPopup(
+        '確定要離開測驗嗎？進度將不會被保存。/ Are you sure? Your progress will not be saved.',
+        
+        // ✅ 確認離開
+        function () {
+            gameState.quizActive = false;
+            gameState.quizStarted = false;
+            gameState.timerRunning = false;
+            backToHome();
+        },
+
+        // ❌ 取消 → 繼續遊戲
+        function () {
+            resumeTimer();
+        }
+    );
+}
+
+/**
+ * 顯示測驗結果
+ * @param {number} score - 分數
+ * @param {number} time - 用時(秒)
+ * @param {number} rank - 排名
+ */
+function showQuizResult(score, time, rank) {
+    // 格式化時間
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    const milliseconds = Math.floor((time % 1) * 100);
+    const timeStr = 
+        String(minutes).padStart(2, '0') + ':' +
+        String(seconds).padStart(2, '0') + '.' +
+        String(milliseconds).padStart(2, '0');
+    
+    // 更新結果顯示
+    document.getElementById('result-score').textContent = `${score} / 50`;
+    document.getElementById('result-time').textContent = timeStr;
+    document.getElementById('result-rank').textContent = `#${rank}`;
+    
+    // 顯示結果頁面
+    showPage('quiz-result-page');
+}
+
+// ===================== LEADERBOARD FUNCTIONS =====================
+/**
+ * 顯示排行榜
+ */
+async function showLeaderboard() {
+    console.log('📊 開啟排行榜');
+
+    // ❌ 先不要抓 Google Sheet（避免炸掉）
+    renderLeaderboardTable();
+    showPage('leaderboard-page');
+}
+
+/**
+ * 渲染排行榜表格
+ */
+function renderLeaderboardTable() {
+    const tbody = document.getElementById('leaderboard-body');
+    tbody.innerHTML = '';
+    
+    gameState.leaderboard.forEach((entry, index) => {
+        const row = document.createElement('tr');
+        
+        const minutes = Math.floor(entry.time / 60);
+        const seconds = Math.floor(entry.time % 60);
+        const milliseconds = Math.floor((entry.time % 1) * 100);
+        const timeStr = 
+            String(minutes).padStart(2, '0') + ':' +
+            String(seconds).padStart(2, '0') + '.' +
+            String(milliseconds).padStart(2, '0');
+        
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${entry.id}</td>
+            <td>${entry.score} / 50</td>
+            <td>${timeStr}</td>
+        `;
+        
+        tbody.appendChild(row);
     });
 }
 
-// ===================== POPUP SYSTEM =====================
+/**
+ * 搜尋排行榜
+ */
+function searchLeaderboard() {
+    const searchInput = document.getElementById('search-rank').value.trim();
+    
+    if (!searchInput) {
+        showPopup('請輸入工號 / Please enter Employee ID');
+        return;
+    }
+    
+    const foundIndex = gameState.leaderboard.findIndex(entry => entry.id === searchInput);
+    
+    if (foundIndex !== -1) {
+        showPopup(`您的排名是第 ${foundIndex + 1} 名 / Your rank is #${foundIndex + 1}`);
+    } else {
+        showPopup('未找到相關記錄 / No record found');
+    }
+}
+
+/**
+ * 匯出排行榜為Excel/CSV格式
+ * 支援格式：Excel (.xlsx) 或 CSV (.csv)
+ */
+function exportToExcel() {
+    console.log('📥 匯出排行榜資料');
+    
+    if (gameState.leaderboard.length === 0) {
+        showPopup('目前沒有排行榜資料可匯出 / No leaderboard data to export');
+        return;
+    }
+    
+    // 準備CSV資料
+    let csvContent = '排行,工號,分數,時間,日期\n';
+    csvContent += 'Rank,Employee ID,Score,Time,Date\n';
+    
+    gameState.leaderboard.forEach((entry, index) => {
+        const minutes = Math.floor(entry.time / 60);
+        const seconds = Math.floor(entry.time % 60);
+        const milliseconds = Math.floor((entry.time % 1) * 100);
+        const timeStr = 
+            String(minutes).padStart(2, '0') + ':' +
+            String(seconds).padStart(2, '0') + '.' +
+            String(milliseconds).padStart(2, '0');
+        
+        csvContent += `${index + 1},"${entry.id}","${entry.score}/50","${timeStr}","${entry.date}"\n`;
+    });
+    
+    // 建立下載連結
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `EHS-Leaderboard-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    console.log('✅ 排行榜已匯出為CSV格式');
+}
+
+// ===================== EVENT MODAL FUNCTIONS =====================
+
+function openEventModal() {
+    const modal = document.getElementById('event-modal');
+    modal.classList.add('active');
+}
+
+function closeEventModal() {
+    const modal = document.getElementById('event-modal');
+    modal.classList.remove('active');
+}
+
+// ===================== CHARACTER MODAL FUNCTIONS =====================
+/**
+ * 打開角色資訊視窗
+ * @param {number} characterId - 角色ID
+ */
+function openCharacterModal(characterId) {
+    const characterData = {
+        1: {
+            name: "消防安全",
+            description: "消防安全宣導內容",
+            image: "./ERC.png"
+        },
+
+        2: {
+            name: "安全檢查",
+            description: "安全檢查宣導內容",
+            image: "./Safety.png"
+        },
+
+        3: {
+            name: "環境保護",
+            description: "環境保護宣導內容",
+            image: "./Env.png"
+        },
+
+        4: {
+            name: "製程管理",
+            description: "製程管理宣導內容",
+            image: "./PSM.png"
+        },
+
+        5: {
+            name: "健康保健",
+            description: "健康保健宣導內容",
+            image: "./HC.png"
+        }
+    };
+    
+    const data = characterData[characterId];
+    if (data) {
+        document.getElementById('modal-character-name').textContent = data.name;
+        document.getElementById('modal-character-description').textContent = data.description;
+        const modalImage = document.getElementById("modal-image");
+
+        modalImage.src = data.image;
+
+        const modal = document.getElementById('character-modal');
+        modal.classList.add('active');
+        console.log(`🎭 打開角色視窗: 角色 ${characterId}`);
+    }
+}
+
+/**
+ * 關閉角色資訊視窗
+ */
+function closeCharacterModal() {
+    const modal = document.getElementById('character-modal');
+    modal.classList.remove('active');
+}
+
+// ===================== UTILITY FUNCTIONS =====================
+
+/**
+ * 返回首頁
+ */
+function backToHome() {
+    gameState.quizStarted = false;
+    gameState.quizActive = false;
+    gameState.currentQuizPage = 1;
+    gameState.answers = {};
+    gameState.score = 0;
+    resetTimer(); // ⭐ 加這行
+    document.getElementById('score').textContent = '0 / 50';
+    document.getElementById('timer').textContent = '00:00.00';
+    showPage('home-page');
+}
+
+/**
+ * 加載示例排行榜資料 (用於演示)
+ */
+function loadSampleLeaderboardData() {
+    gameState.leaderboard = [
+        { id: 'EMP0001', score: 50, time: 120.50, date: '2026-06-07 10:30' },
+        { id: 'EMP0002', score: 50, time: 125.30, date: '2026-06-07 10:25' },
+        { id: 'EMP0003', score: 45, time: 145.20, date: '2026-06-07 10:20' },
+        { id: 'EMP0004', score: 40, time: 180.15, date: '2026-06-07 10:15' },
+        { id: 'EMP0005', score: 35, time: 200.80, date: '2026-06-07 10:10' }
+    ];
+    localStorage.setItem('leaderboard', JSON.stringify(gameState.leaderboard));
+}
+
+// ===================== CONSOLE LOG FOR DEBUGGING =====================
+console.log('🎮 EHS 互動式電腦線上遊戲 - 代碼已加載');
+console.log('📋 功能清單:');
+console.log('  ✅ 首頁（主視覺背景）');
+console.log('  ✅ 遊戲規則頁面');
+console.log('  ✅ 測驗頁面（一頁兩題）');
+console.log('  ✅ 計時計分系統');
+console.log('  ✅ 排行榜系統');
+console.log('  ✅ 排行榜匯出Excel/CSV');
+console.log('  ✅ 角色資訊視窗');
+console.log('  ✅ 背景音樂');
+console.log('  ⏳ Google Sheets 整合（需要後端支援）');
+
+// ===================== POPUP SYSTEM (排行榜查詢彈跳視窗) =====================
+function showPopup(message) {
+    const popup = document.getElementById('popup-modal');
+    const text = document.getElementById('popup-text');
+
+    if (popup && text) {
+        text.innerText = message;
+        popup.classList.remove('hidden');
+    }
+}
+
+function closePopup() {
+    const popup = document.getElementById('popup-modal');
+    if (popup) {
+        popup.classList.add('hidden');
+    }
+}
+
 function showConfirmPopup(message, onConfirm, onCancel) {
     const popup = document.getElementById('popup-modal');
     const text = document.getElementById('popup-text');
@@ -193,340 +847,43 @@ function showConfirmPopup(message, onConfirm, onCancel) {
     const btnCancel = document.getElementById('popup-cancel');
 
     text.innerText = message;
+
+    // 顯示 popup
     popup.classList.remove('hidden');
 
+    // 清除舊事件（避免重複綁定）
     btnConfirm.onclick = null;
     btnCancel.onclick = null;
 
-    btnConfirm.onclick = function () { closeConfirmPopup(); if (onConfirm) onConfirm(); };
-    btnCancel.onclick = function () { closeConfirmPopup(); if (onCancel) onCancel(); };
-}
-
-function closeConfirmPopup() {
-    const popup = document.getElementById('popup-modal');
-    if (popup) popup.classList.add('hidden');
-}
-
-function closePopup() { closeConfirmPopup(); }
-
-function showPopup(message, icon) {
-    const msgPopup = document.getElementById('msg-popup');
-    const msgText = document.getElementById('msg-popup-text');
-    if (!msgPopup || !msgText) { alert(message); return; }
-    msgText.innerHTML = message.replace(/\n/g, '<br>');
-    const iconEl = msgPopup.querySelector('.msg-popup-icon');
-    if (iconEl && icon) iconEl.textContent = icon;
-    msgPopup.classList.remove('hidden');
-}
-
-function closeMsgPopup() {
-    const msgPopup = document.getElementById('msg-popup');
-    if (msgPopup) msgPopup.classList.add('hidden');
-}
-
-// ===================== QUIZ FLOW =====================
-function startQuiz() {
-    showPage('game-rules-page');
-}
-
-function beginQuiz() {
-    // 顯示工號輸入
-    const modal = document.getElementById('employee-modal');
-    if (modal) modal.classList.add('active');
-}
-
-function confirmEmployeeId() {
-    const input = document.getElementById('employee-id-input');
-    const id = input ? input.value.trim() : '';
-    if (!id) {
-        showPopup('請輸入工號\nPlease enter Employee ID', '⚠️');
-        return;
-    }
-    gameState.employeeId = id;
-    const modal = document.getElementById('employee-modal');
-    if (modal) modal.classList.remove('active');
-
-    // 初始化測驗
-    gameState.answers = {};
-    gameState.score = 0;
-    gameState.currentQuizPage = 1;
-    gameState.alreadySubmitted = false;
-    gameState.quizStarted = true;
-    gameState.quizActive = true;
-    gameState.startTime = Date.now();
-    gameState.elapsedTime = 0;
-
-    renderQuizPage();
-    showPage('quiz-page');
-    startTimer();
-}
-
-function renderQuizPage() {
-    const container = document.getElementById('questions-container');
-    if (!container) return;
-    container.innerHTML = '';
-
-    const page = gameState.currentQuizPage;
-    const perPage = Math.ceil(quizQuestions.length / gameState.totalQuizPages);
-    const start = (page - 1) * perPage;
-    const end = Math.min(start + perPage, quizQuestions.length);
-    const pageQuestions = quizQuestions.slice(start, end);
-
-    pageQuestions.forEach((q) => {
-        const block = document.createElement('div');
-        block.className = 'question-block';
-        block.innerHTML = `
-            <div class="question-number">Q${q.id}</div>
-            <div class="question-text">${q.text}</div>
-            <div class="question-text-en">${q.textEn}</div>
-            <div class="question-options">
-                ${q.options.map((opt, i) => `
-                    <div class="option">
-                        <input type="radio" name="q${q.id}" id="q${q.id}_${i}" value="${i}"
-                            ${gameState.answers[q.id] === i ? 'checked' : ''}>
-                        <label for="q${q.id}_${i}">
-                            <span class="option-text">${opt.text}</span>
-                            <span class="option-text-en">${opt.textEn}</span>
-                        </label>
-                    </div>
-                `).join('')}
-            </div>
-        `;
-        container.appendChild(block);
-
-        // 記錄作答
-        block.querySelectorAll(`input[name="q${q.id}"]`).forEach(radio => {
-            radio.addEventListener('change', function () {
-                gameState.answers[q.id] = parseInt(this.value);
-            });
-        });
-    });
-
-    // 更新頁碼與按鈕
-    const indicator = document.getElementById('page-indicator');
-    if (indicator) indicator.textContent = `${page} / ${gameState.totalQuizPages}`;
-
-    const btnPrev = document.getElementById('btn-prev-page');
-    const btnNext = document.getElementById('btn-next-page');
-    const btnSubmit = document.getElementById('btn-submit-quiz');
-
-    if (btnPrev) btnPrev.style.display = page > 1 ? 'flex' : 'none';
-    if (btnNext) btnNext.style.display = page < gameState.totalQuizPages ? 'flex' : 'none';
-    if (btnSubmit) btnSubmit.style.display = page === gameState.totalQuizPages ? 'flex' : 'none';
-}
-
-function previousQuizPage() {
-    if (gameState.currentQuizPage > 1) {
-        gameState.currentQuizPage--;
-        renderQuizPage();
-    }
-}
-
-function nextQuizPage() {
-    if (gameState.currentQuizPage < gameState.totalQuizPages) {
-        gameState.currentQuizPage++;
-        renderQuizPage();
-    }
-}
-
-function submitQuiz() {
-    if (gameState.alreadySubmitted) return;
-
-    showConfirmPopup(
-        '確定要提交測驗嗎?\nAre you sure you want to submit?',
-        function () {
-            gameState.alreadySubmitted = true;
-            pauseTimer();
-
-            // 計算分數
-            const pointsPerQuestion = 50 / quizQuestions.length;
-            let score = 0;
-            quizQuestions.forEach(q => {
-                if (gameState.answers[q.id] === q.correct) {
-                    score += pointsPerQuestion;
-                }
-            });
-            gameState.score = Math.round(score);
-
-            const totalTime = gameState.elapsedTime / 1000;
-            const min = Math.floor(totalTime / 60);
-            const sec = Math.floor(totalTime % 60);
-            const ms = Math.floor((totalTime % 1) * 100);
-            const timeStr = String(min).padStart(2, '0') + ':' +
-                            String(sec).padStart(2, '0') + '.' +
-                            String(ms).padStart(2, '00');
-
-            const newEntry = {
-                id: gameState.employeeId || 'GUEST',
-                score: gameState.score,
-                time: totalTime,
-                timeStr: timeStr,
-                date: new Date().toLocaleString('zh-TW')
-            };
-
-            // ✅ 寫入 Google Sheet
-            writeToGoogleSheet(newEntry);
-
-            // 顯示結果（排名由排行榜頁面呈現，這裡僅顯示個人成績）
-            showResultPopup(gameState.score, totalTime);
-        },
-        null
-    );
-}
-
-// ===================== 結果彈跳視窗 =====================
-function showResultPopup(score, time) {
-    const min = Math.floor(time / 60);
-    const sec = Math.floor(time % 60);
-    const ms = Math.floor((time % 1) * 100);
-    const timeStr = String(min).padStart(2, '0') + ':' +
-                    String(sec).padStart(2, '0') + '.' +
-                    String(ms).padStart(2, '00');
-
-    document.getElementById('popup-result-score').textContent = `${score} / 50`;
-    document.getElementById('popup-result-time').textContent = timeStr;
-
-    // ✅ 排名改為提示開啟排行榜頁面查看
-    const rankEl = document.getElementById('popup-result-rank');
-    if (rankEl) rankEl.textContent = '請至排行榜頁面查看';
-
-    const btnHome = document.getElementById('btn-result-home');
-    const btnLB = document.getElementById('btn-result-leaderboard');
-    btnHome.onclick = function () { closeResultPopup(); backToHome(); };
-
-    // ✅ 結果頁排行榜按鈕 → 開啟排行榜網頁
-    btnLB.onclick = function () { closeResultPopup(); openLeaderboardPage(); };
-
-    document.getElementById('result-popup').classList.remove('hidden');
-    console.log(`🏆 結果：分數${score}, 時間${timeStr}`);
-}
-
-function closeResultPopup() {
-    const popup = document.getElementById('result-popup');
-    if (popup) popup.classList.add('hidden');
-}
-
-// ===================== 關閉測驗 =====================
-function closeQuiz() {
-    pauseTimer();
-    showConfirmPopup(
-        '確定要離開測驗嗎？進度將不會被保存。\nAre you sure? Your progress will not be saved.',
-        function () {
-            gameState.quizActive = false;
-            gameState.quizStarted = false;
-            gameState.timerRunning = false;
-            backToHome();
-        },
-        function () { resumeTimer(); }
-    );
-}
-
-// ===================== CHARACTER MODAL =====================
-function openCharacterModal(characterId) {
-    const characterData = {
-        1: { name: "消防安全", description: "消防安全宣導內容", image: "./ERC.png" },
-        2: { name: "安全檢查", description: "安全檢查宣導內容", image: "./Safety.png" },
-        3: { name: "環境保護", description: "環境保護宣導內容", image: "./Env.png" },
-        4: { name: "製程管理", description: "製程管理宣導內容", image: "./PSM.png" },
-        5: { name: "健康保健", description: "健康保健宣導內容", image: "./HC.png" }
+    // 綁定事件
+    btnConfirm.onclick = function () {
+        closePopup();
+        if (onConfirm) onConfirm();
     };
-    const data = characterData[characterId];
-    if (data) {
-        document.getElementById('modal-character-name').textContent = data.name;
-        document.getElementById('modal-character-description').textContent = data.description;
-        document.getElementById('modal-image').src = data.image;
-        document.getElementById('character-modal').classList.add('active');
-    }
+
+    btnCancel.onclick = function () {
+        closePopup();
+        if (onCancel) onCancel();
+    };
 }
 
-function closeCharacterModal() {
-    document.getElementById('character-modal').classList.remove('active');
+function closePopup() {
+    const popup = document.getElementById('popup-modal');
+    popup.classList.add('hidden');
 }
 
-// ===================== SCHEDULE MODAL =====================
-function openScheduleModal() {
-    document.getElementById('schedule-modal').classList.add('active');
-    console.log('📅 開啟活動日程表');
-}
-
-function closeScheduleModal() {
-    document.getElementById('schedule-modal').classList.remove('active');
-    console.log('❌ 關閉活動日程表');
-}
-
-// ===================== UTILITY =====================
-function backToHome() {
-    console.log('🏠 返回首頁');
-    closeResultPopup();
-    closeConfirmPopup();
-    closeMsgPopup();
-    gameState.quizStarted = false;
+// 點選叉叉 時間暫停
+function pauseTimer() {
     gameState.quizActive = false;
-    gameState.alreadySubmitted = false;
-    gameState.currentQuizPage = 1;
-    gameState.answers = {};
-    gameState.score = 0;
-    resetTimer();
-    document.getElementById('score').textContent = '0 / 50';
-    document.getElementById('timer').textContent = '00:00.00';
-    showPage('home-page');
 }
-
-function downloadPDF() {
-    const link = document.createElement('a');
-    // 🔧 替換為實際 PDF 路徑
-    link.href = './safety-guide.pdf';
-    link.download = 'safety-guide.pdf';
-    link.click();
-}
-
-// ===================== TIMER FUNCTIONS =====================
-function startTimer() {
-    const timerEl = document.getElementById('timer');
-    if (gameState.timerRunning) return;
-    gameState.timerRunning = true;
-    gameState.timerInterval = setInterval(function () {
-        if (gameState.quizActive) {
-            const elapsed = Date.now() - gameState.startTime;
-            gameState.elapsedTime = elapsed;
-            const totalSec = Math.floor(elapsed / 1000);
-            const min = Math.floor(totalSec / 60);
-            const sec = totalSec % 60;
-            const ms = Math.floor((elapsed % 1000) / 10);
-            timerEl.textContent =
-                String(min).padStart(2, '0') + ':' +
-                String(sec).padStart(2, '0') + '.' +
-                String(ms).padStart(2, '0');
-        }
-    }, 10);
-}
-
-function resetTimer() {
-    if (gameState.timerInterval) { clearInterval(gameState.timerInterval); gameState.timerInterval = null; }
-    gameState.timerRunning = false;
-    gameState.elapsedTime = 0;
-}
-
-function pauseTimer() { gameState.quizActive = false; }
 
 function resumeTimer() {
     if (!gameState.quizActive && gameState.startTime) {
         gameState.quizActive = true;
+
+        // 修正 startTime（避免時間跳掉）
         gameState.startTime = Date.now() - gameState.elapsedTime;
+
         startTimer();
     }
 }
-
-// ===================== 背景音樂 =====================
-function playBackgroundMusic() {
-    const audio = document.getElementById('bg-music');
-    if (audio) {
-        audio.volume = 0.3;
-        audio.play().catch(e => console.log('音樂播放需要使用者互動:', e));
-    }
-}
-
-// ===================== DEBUG LOG =====================
-console.log('🎮 EHS 互動式電腦線上遊戲 - 代碼已加載');
-console.log('✅ 使用 Google Sheets + Apps Script 作為跨裝置成績儲存');
-console.log('📋 Popup：確認型(popup-modal) / 訊息型(msg-popup) / 結果型(result-popup)');
