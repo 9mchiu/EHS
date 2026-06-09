@@ -1,4 +1,4 @@
-// ===================== GLOBAL VARIABLES =====================
+GAS_WEB_APP// ===================== GLOBAL VARIABLES =====================
 let gameState = {
     currentPage: 'home',
     employeeId: null,
@@ -18,7 +18,7 @@ let gameState = {
 
 // ===================== Google Apps Script 設定區 =====================
 // 🔧 請將下方 URL 替換為你部署的 Google Apps Script Web App URL
-const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxbWER1QFu0BT8sj7HX1j8WHRX3tDg4-N9avSXeGg4ej_cGaf3NCsLN9NLB8y883p0o3A/exec';
 
 // 🔧 請將下方 URL 替換為你的排行榜網頁網址
 const LEADERBOARD_PAGE_URL = 'leaderboard.html'; // 或填入完整網址如 'https://yoursite.com/leaderboard.html'
