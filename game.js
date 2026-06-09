@@ -524,19 +524,6 @@ function submitQuiz() {
     showQuizResult(gameState.score, totalTime, rank);
 }
 
-    // 計算排名
-    const sorted = [...gameState.leaderboard].sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        return a.time - b.time;
-    });
-
-    const rank = sorted.findIndex(
-        e => e.id === newEntry.id && e.time === newEntry.time
-    ) + 1;
-        
-
-    // 顯示結果
-    showQuizResult(gameState.score, totalTime, rank);
     
 function formatTime(timeInSeconds) {
     const minutes = Math.floor(timeInSeconds / 60);
@@ -656,10 +643,16 @@ function searchLeaderboard() {
     const foundIndex = gameState.leaderboard.findIndex(entry => entry.id === searchInput);
     
     if (foundIndex !== -1) {
-        showPopup(`您的排名是第 ${foundIndex + 1} 名 / Your rank is #${foundIndex + 1}`);
+        showPopup(
+    `您的排名是第 ${foundIndex + 1} 名 / Your rank is #${foundIndex + 1}`,
+        function () {
+            showPage('leaderboard-page'); // 確保回到排行榜
+        }
+    );
     } else {
         showPopup('未找到相關記錄 / No record found');
     }
+    
 }
 
 /**
@@ -823,22 +816,25 @@ console.log('  ✅ 背景音樂');
 console.log('  ⏳ Google Sheets 整合（需要後端支援）');
 
 // ===================== POPUP SYSTEM (排行榜查詢彈跳視窗) =====================
-function showPopup(message) {
+function showPopup(message, onOk) {
     const popup = document.getElementById('popup-modal');
     const text = document.getElementById('popup-text');
+    const btn = document.getElementById('popup-confirm');
 
-    if (popup && text) {
-        text.innerText = message;
-        popup.classList.remove('hidden');
-    }
+    if (!popup || !text || !btn) return;
+
+    text.innerText = message;
+    popup.classList.remove('hidden');
+
+    // 清掉舊事件，避免累積
+    btn.onclick = null;
+
+    btn.onclick = function () {
+        closePopup();
+        if (onOk) onOk();
+    };
 }
 
-function closePopup() {
-    const popup = document.getElementById('popup-modal');
-    if (popup) {
-        popup.classList.add('hidden');
-    }
-}
 
 function showConfirmPopup(message, onConfirm, onCancel) {
     const popup = document.getElementById('popup-modal');
@@ -885,5 +881,48 @@ function resumeTimer() {
         gameState.startTime = Date.now() - gameState.elapsedTime;
 
         startTimer();
+    }
+}
+
+async function writeToGoogleSheet(entry) {
+    try {
+        const payload = {
+            action: "add",
+            id: entry.id,
+            score: entry.score,
+            time: entry.time,
+            date: entry.date
+        };
+
+        await fetch(GAS_WEB_APP_URL, {
+            method: "POST",
+            mode: "no-cors", // ⚠️ GAS 常用設定
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        console.log("✅ 已寫入 Google Sheet");
+    } catch (err) {
+        console.error("❌ 寫入 Google Sheet 失敗", err);
+    }
+}
+
+async function fetchLeaderboardFromGoogle() {
+    try {
+        const res = await fetch(GAS_WEB_APP_URL + "?action=get");
+        const data = await res.json();
+
+        // 轉換格式（確保跟你本地一致）
+        return data.map(item => ({
+            id: item.id,
+            score: Number(item.score),
+            time: Number(item.time),
+            date: item.date
+        }));
+    } catch (err) {
+        console.error("❌ 讀取 Google Sheet 失敗", err);
+        return null;
     }
 }
