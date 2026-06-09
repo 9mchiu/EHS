@@ -151,8 +151,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 綁定所有事件監聽器
     bindEventListeners();
     
-    // 初始化排行榜資料
-    if (gameState.leaderboard.length === 0) {
+    // 初始化排行榜資料（僅在未啟用 Google 後端時才載入示例資料，
+    // 啟用後一律以 Google 試算表為唯一資料來源）
+    if (!isGoogleBackendEnabled() && gameState.leaderboard.length === 0) {
         loadSampleLeaderboardData();
     }
     
@@ -594,17 +595,27 @@ function showQuizResult(score, time, rank) {
 async function showLeaderboard() {
     console.log('📊 開啟排行榜');
 
-    // 先用本機資料即時顯示，避免等待網路
-    renderLeaderboardTable();
     showPage('leaderboard-page');
 
-    // 若已設定 Google 後端，改用試算表的最新資料覆蓋顯示
     if (isGoogleBackendEnabled()) {
-        const remote = await fetchLeaderboardFromSheet();
-        if (remote && remote.length) {
-            gameState.leaderboard = remote;
-            renderLeaderboardTable();
+        // Google 試算表為唯一資料來源
+        const tbody = document.getElementById('leaderboard-body');
+        if (tbody) {
+            tbody.innerHTML =
+                '<tr><td colspan="4" style="text-align:center;color:#999;">讀取中… / Loading…</td></tr>';
         }
+
+        const remote = await fetchLeaderboardFromSheet();
+        if (remote) {
+            // 讀取成功（即使 0 筆也以試算表為準）
+            gameState.leaderboard = remote;
+        } else {
+            console.warn('⚠️ 讀取試算表失敗，暫時顯示本機資料');
+        }
+        renderLeaderboardTable();
+    } else {
+        // 未設定 Google 後端：使用本機資料
+        renderLeaderboardTable();
     }
 }
 
@@ -943,7 +954,11 @@ async function submitToGoogleForm(entry) {
             body: body.toString(),
         });
 
-        console.log('✅ 已透過 Google 表單寫入成績');
+        // ⚠️ no-cors 模式讀不到回應狀態，無法確認真的寫入成功。
+        // 若 Console 另有出現 formResponse 的 4xx/5xx 紅字，代表其實失敗
+        // （最常見：actionUrl 用到 /forms/u/0/d/.../formResponse 會回 401，
+        //  正確應為 /forms/d/e/1FAIpQLS.../formResponse）。請以試算表是否新增資料為準。
+        console.log('📤 已送出成績到 Google 表單（no-cors 無法確認結果，請至試算表檢查）');
         return true;
     } catch (err) {
         console.error('❌ 寫入 Google 表單失敗', err);
@@ -964,6 +979,28 @@ function parseGvizResponse(text) {
 }
 
 /**
+ * 向 gviz 端點抓取某一分頁的資料表；失敗或查無資料表時回傳 null。
+ * @param {string} sheetId 試算表 ID
+ * @param {string} sheetName 分頁名稱（空字串 = 預設第一個分頁）
+ * @returns {Promise<object|null>} gviz 的 table 物件
+ */
+async function fetchGvizTable(sheetId, sheetName) {
+    try {
+        let url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json`;
+        if (sheetName) url += `&sheet=${encodeURIComponent(sheetName)}`;
+
+        const res = await fetch(url);
+        const text = await res.text();
+        const data = parseGvizResponse(text);
+
+        if (!data || !data.table || !data.table.cols) return null;
+        return data.table;
+    } catch (err) {
+        return null;
+    }
+}
+
+/**
  * 從 Google 試算表（gviz JSON）讀取排行榜資料。
  * 試算表需設為「知道連結的任何人 → 檢視者」。
  * @returns {Promise<Array<{id:string,score:number,time:number,date:string}>|null>}
@@ -974,14 +1011,16 @@ async function fetchLeaderboardFromSheet() {
     try {
         const { id, name, columns } = window.EHS_CONFIG.sheet;
 
-        let url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json`;
-        if (name) url += `&sheet=${encodeURIComponent(name)}`;
+        // 先用設定的分頁名稱讀取；若分頁名稱對不上（gviz 回 error），
+        // 退而求其次讀預設（第一個）分頁。
+        let table = await fetchGvizTable(id, name);
+        if (!table) table = await fetchGvizTable(id, '');
+        if (!table) {
+            console.error('❌ 讀取 Google 試算表失敗：找不到資料表（請確認分頁名稱與共用權限）');
+            return null;
+        }
 
-        const res = await fetch(url);
-        const text = await res.text();
-        const data = parseGvizResponse(text);
-
-        const cols = (data.table.cols || []).map(
+        const cols = (table.cols || []).map(
             col => (col.label || '').trim().toLowerCase()
         );
 
@@ -997,7 +1036,7 @@ async function fetchLeaderboardFromSheet() {
             date:  idxOf(columns.date, 4),
         };
 
-        const rows = (data.table.rows || []).map(r => {
+        const rows = (table.rows || []).map(r => {
             const v = i => (i >= 0 && r.c[i]) ? r.c[i].v : null;
             const f = i => (i >= 0 && r.c[i]) ? (r.c[i].f != null ? r.c[i].f : r.c[i].v) : null;
             return {

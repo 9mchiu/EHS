@@ -140,6 +140,24 @@ function parseGvizResponse(text){
     return JSON.parse(json);
 }
 
+// 抓取某分頁資料表；失敗或查無資料表回傳 null（空字串 = 預設第一個分頁）
+async function fetchGvizTable(sheetId, sheetName){
+    try{
+        let url = 'https://docs.google.com/spreadsheets/d/' + sheetId +
+                  '/gviz/tq?tqx=out:json';
+        if(sheetName) url += '&sheet=' + encodeURIComponent(sheetName);
+
+        const response = await fetch(url);
+        const text = await response.text();
+        const data = parseGvizResponse(text);
+
+        if(!data || !data.table || !data.table.cols) return null;
+        return data.table;
+    }catch(err){
+        return null;
+    }
+}
+
 async function loadLeaderboard(){
 
     const cfg = window.EHS_CONFIG;
@@ -155,15 +173,16 @@ async function loadLeaderboard(){
 
         const { id, name, columns } = cfg.sheet;
 
-        let url = 'https://docs.google.com/spreadsheets/d/' + id +
-                  '/gviz/tq?tqx=out:json';
-        if(name) url += '&sheet=' + encodeURIComponent(name);
+        // 先用設定的分頁名稱讀取；對不上時退讀預設（第一個）分頁
+        let table = await fetchGvizTable(id, name);
+        if(!table) table = await fetchGvizTable(id, '');
+        if(!table){
+            tbody.innerHTML =
+                '<tr><td colspan="5" class="empty-text">讀取排行榜失敗（請確認分頁名稱與共用權限）</td></tr>';
+            return;
+        }
 
-        const response = await fetch(url);
-        const text = await response.text();
-        const data = parseGvizResponse(text);
-
-        const cols = (data.table.cols || []).map(
+        const cols = (table.cols || []).map(
             c => (c.label || '').trim().toLowerCase()
         );
 
@@ -179,7 +198,7 @@ async function loadLeaderboard(){
             date:  idxOf(columns.date, 4),
         };
 
-        let rows = (data.table.rows || []).map(r => {
+        let rows = (table.rows || []).map(r => {
             const v = i => (i >= 0 && r.c[i]) ? r.c[i].v : null;
             const f = i => (i >= 0 && r.c[i]) ? (r.c[i].f != null ? r.c[i].f : r.c[i].v) : null;
             return {
