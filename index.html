@@ -16,33 +16,36 @@
         <div id="home-page" class="page active">
             <img src="./background.png" alt="Background" class="background-image">
             
-            <!-- 左上角按鈕區域 -->
-            <div class="top-left-buttons">
-                <!-- 宣導內容(all) 按鈕 -->
-                <button id="btn-download-pdf" class="btn btn-primary">
-                    宣導內容（all）
-                    <span class="btn-label-en">Download All Contents</span>
-                </button>
+            <!-- 首頁按鈕選單：單一垂直堆疊（flex + gap），保證 RWD 不重疊 -->
+            <div class="home-menu">
+                <!-- 開始測驗（置頂） -->
+                <div class="center-button-area">
+                    <button id="btn-start-quiz" class="btn btn-start-quiz">
+                        開始測驗
+                        <span class="btn-label-en">Start Quiz</span>
+                    </button>
+                </div>
 
-                <!-- 排行榜按鈕 -->
-                <button id="btn-leaderboard" class="btn btn-secondary">
-                    排行榜
-                    <span class="btn-label-en">Leaderboard</span>
-                </button>
+                <!-- 其餘功能按鈕 -->
+                <div class="top-left-buttons">
+                    <!-- 宣導內容(all) 按鈕 -->
+                    <button id="btn-download-pdf" class="btn btn-primary">
+                        宣導內容（all）
+                        <span class="btn-label-en">Download All Contents</span>
+                    </button>
 
-                <!-- ⭐ 活動日程表（新增在這裡） -->
-                <button id="btn-event-schedule" class="btn btn-secondary">
-                    活動日程表
-                    <span class="btn-label-en">Event Schedule</span>
-                </button>
-            </div>
-            
-            <!-- 主畫面中央開始測驗按鈕 -->
-            <div class="center-button-area">
-                <button id="btn-start-quiz" class="btn btn-start-quiz">
-                    開始測驗
-                    <span class="btn-label-en">Start Quiz</span>
-                </button>
+                    <!-- 排行榜按鈕 -->
+                    <button id="btn-leaderboard" class="btn btn-secondary">
+                        排行榜
+                        <span class="btn-label-en">Leaderboard</span>
+                    </button>
+
+                    <!-- 活動日程表 -->
+                    <button id="btn-event-schedule" class="btn btn-secondary">
+                        活動日程表
+                        <span class="btn-label-en">Event Schedule</span>
+                    </button>
+                </div>
             </div>
             
             <!-- 角色互動 - 顯示泡泡訊息 -->
@@ -305,9 +308,14 @@
 
         <div class="popup-actions">
             <button id="popup-confirm" class="popup-btn primary">確認 / OK</button>
+            <button id="popup-cancel" class="popup-btn secondary">取消 / Cancel</button>
         </div>
     </div>
 </div>
+
+    <!-- ===================== BACKGROUND MUSIC ===================== -->
+    <!-- 要啟用背景音樂：把音檔放進專案，並設定 game.js 最上方的 BG_MUSIC_SRC -->
+    <audio id="bg-music" loop preload="auto"></audio>
 
     <!-- ===================== SCRIPTS ===================== -->
     <script src="config.js"></script>
