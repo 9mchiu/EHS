@@ -15,6 +15,6 @@ window.EHS_CONFIG = {
         // 你的 Cloudflare Worker 網址（結尾不要加斜線）。
         // 取得方式：部署 Worker 後，於 Cloudflare 後台複製 *.workers.dev 網址。
         // 範例： https://ehs-leaderboard.your-name.workers.dev
-        baseUrl: "https://young-mountain-58c6.charlychiu.workers.dev/",
+        baseUrl: "https://ehs-leaderboard.charlychiu.workers.dev",
     },
 };

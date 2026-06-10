@@ -1,0 +1,9 @@
+# Cloudflare Wrangler 本機快取/狀態（dev、build 產生）
+.wrangler/
+worker/.wrangler/
+
+# Node
+node_modules/
+
+# macOS
+.DS_Store

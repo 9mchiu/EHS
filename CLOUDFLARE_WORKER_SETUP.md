@@ -1,15 +1,19 @@
-# Cloudflare Worker + KV 排行榜 部署教學
+# Cloudflare Worker + Durable Object 排行榜 部署教學
 
-本專案的成績資料改用 **Cloudflare Worker（迷你後端）+ KV（鍵值儲存）**：
+本專案的成績資料用 **Cloudflare Worker（迷你後端）+ Durable Object（DO）** 儲存：
 
-- **寫入**：遊戲提交時 `POST {baseUrl}/submit`（JSON）→ Worker 寫進 KV。
-- **讀取**：排行榜 `GET {baseUrl}/leaderboard` → Worker 回傳排序後的 JSON。
+- **寫入**：遊戲提交時 `POST {baseUrl}/submit`（JSON）→ Worker 轉給 DO 寫入。
+- **讀取**：排行榜 `GET {baseUrl}/leaderboard` → 回傳排序後的 JSON。
 - **退路**：`config.js` 的 `api.baseUrl` 留空時，自動退回瀏覽器 `localStorage`，仍可遊玩。
 
 後端程式在 [`worker/worker.js`](./worker/worker.js)，設定在 [`worker/wrangler.toml`](./worker/wrangler.toml)。
-費用：**$0**（免費額度每天 10 萬次請求、KV 讀 10 萬／寫 1000 次／天，內部活動遠遠用不完）。
 
-資料結構（KV 內 key=`leaderboard`，值為陣列）：
+> **為什麼用 Durable Object？**
+> 先前用「單一 KV key 存整個排行榜」，每次交卷都「讀整包 → 改 → 寫整包」。多人**同時**交卷時會用各自手上的舊資料互相覆蓋，導致**真實成績遺失**（競態）。
+> Durable Object 保證「全域唯一實例、請求序列化處理」，讀-改-寫不會交錯，從根本消除競態；其儲存也是**強一致性**（KV 是最終一致）。
+> SQLite-backed DO 在 **Workers 免費方案即可使用**（5GB 額度），不需付費升級。
+
+資料結構（DO storage key=`list`，值為陣列）：
 
 ```json
 [
@@ -21,48 +25,15 @@
 
 ---
 
-## 方式 A：Cloudflare 後台點一點（不碰指令，推薦）
+## 方式 A：用 wrangler 部署（建立 DO 必用，推薦）
 
-### 1. 註冊並進入 Workers
-1. 到 <https://dash.cloudflare.com> 註冊／登入（免費）。
-2. 左側選 **Workers & Pages** → **Create application** → **Create Worker**。
-3. 取個名字，例如 `ehs-leaderboard` → **Deploy**（先部署一個預設範本）。
+> ⚠️ 為什麼 DO 沒有「純後台點一點」的部署法？
+> SQLite-backed Durable Object 的**類別必須在「初次部署」時透過 wrangler 的 migration（`new_sqlite_classes`）建立**，且官方規定「不能對既有的 DO 類別事後改成 SQLite」。後台無法可靠地完成這個初次建立，所以 **DO 的第一次部署一定要用 wrangler**（之後的維護、查資料可以在後台做，見方式 B）。需先安裝 Node.js。
 
-### 2. 建立 KV namespace
-1. 左側 **Storage & Databases**（或 **Workers & Pages → KV**）→ **Create a namespace**。
-2. 名稱填 `EHS`（隨意）→ **Add**。
+> ❌ **不需要建立 KV namespace**：DO 版用 Durable Object 儲存，**不要**再跑 `wrangler kv namespace create`。
+> 若你照舊教學跑了它、看到 `A KV namespace with the title "EHS" already exists`，忽略即可，不影響部署。
 
-### 3. 把 KV 綁定到 Worker
-1. 回到剛建立的 Worker → **Settings** → **Bindings**（或 **Variables and Secrets → KV Namespace Bindings**）。
-2. **Add binding**：
-   - **Variable name** 一定要填 **`EHS`**（程式用 `env.EHS` 存取，名稱要一模一樣）。
-   - **KV namespace** 選剛剛建立的那個。
-3. **Save / Deploy**。
-
-### 4. 貼上後端程式
-1. Worker 頁面 → **Edit code**（`</> Quick edit`）。
-2. 把編輯器內容**全部刪掉**，貼上專案裡 [`worker/worker.js`](./worker/worker.js) 的完整內容。
-3. 右上 **Deploy**。
-
-### 5. 拿到網址，填進前端
-1. Worker 頁面上方會有一個網址，像：
-   ```
-   https://ehs-leaderboard.your-name.workers.dev
-   ```
-2. 打開專案的 [`config.js`](./config.js)，把它填進 `baseUrl`（**結尾不要加斜線**）：
-   ```js
-   window.EHS_CONFIG = {
-       api: {
-           baseUrl: "https://ehs-leaderboard.your-name.workers.dev",
-       },
-   };
-   ```
-
----
-
-## 方式 B：用 wrangler 指令列（習慣 CLI 的話）
-
-需先安裝 Node.js。在 `worker/` 目錄下操作：
+在 `worker/` 目錄下操作：
 
 ```bash
 cd worker
@@ -70,17 +41,55 @@ cd worker
 # 1. 登入 Cloudflare（會開瀏覽器授權）
 npx wrangler login
 
-# 2. 建立 KV namespace，會印出一段 id
-npx wrangler kv namespace create EHS
-
-# 3. 把上一步印出的 id 貼進 wrangler.toml 的 id="..."
-#    kv_namespaces = [ { binding = "EHS", id = "貼這裡" } ]
-
-# 4. 部署
+# 2. 部署（會自動套用 wrangler.toml 內的 DO 綁定與 migration；不需先建任何資源）
 npx wrangler deploy
 ```
 
-部署完成後 wrangler 會印出 `*.workers.dev` 網址，照「方式 A 第 5 步」填進 `config.js`。
+`wrangler.toml` 已設定好，不需再手動建立資源：
+
+```toml
+name = "ehs-leaderboard"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+[[durable_objects.bindings]]
+name = "LEADERBOARD"
+class_name = "Leaderboard"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Leaderboard"]
+```
+
+部署完成後 wrangler 會印出 `*.workers.dev` 網址。
+
+---
+
+## 方式 B：Cloudflare 後台（部署後的維護與查資料）
+
+> DO 的**初次建立**請用方式 A；**部署完成後**，下面這些都能在後台 GUI 操作，不必再碰指令。
+
+1. **查看 / 進入 Worker**：<https://dash.cloudflare.com> → **Workers & Pages** → 點 `ehs-leaderboard`。可看到對外網址、請求用量、錯誤記錄（Logs）。
+2. **改程式**：Worker 頁 → **Edit code**（`</> Quick edit`）→ 改 `worker.js` → **Deploy**。
+   - ⚠️ 注意：只「改邏輯」可以；若要**新增/變更 DO 類別**仍須回方式 A 用 wrangler 跑 migration。
+3. **查 / 改 / 清空排行榜資料**：**Storage & Databases → Durable Objects** → 選到 `Leaderboard` namespace → **Data Studio**。
+   - 可用表格/SQL 瀏覽、編輯、刪除資料（只有 SQLite-backed DO 能用 Data Studio）。
+   - 適合：賽後查成績、手動修正某筆、活動前**清空重置**排行榜。
+4. **鎖定來源（CORS）**：要只允許自家網域，回方式 A 把 `worker.js` 的 `CORS` 由 `'*'` 改成你的網址後重新 `wrangler deploy`。
+
+---
+
+## 把網址填進前端
+
+打開專案的 [`config.js`](./config.js)，把網址填進 `baseUrl`（**結尾不要加斜線**）：
+
+```js
+window.EHS_CONFIG = {
+    api: {
+        baseUrl: "https://ehs-leaderboard.your-name.workers.dev",
+    },
+};
+```
 
 ---
 
@@ -89,7 +98,7 @@ npx wrangler deploy
 1. 用瀏覽器開 `index.html`，完成一次測驗並提交：
    - F12 Console 應出現 `✅ 已透過後端 API 寫入成績`。
 2. 直接打 API 也能測（把網址換成你的）：
-   - 讀取： 瀏覽器開 `https://你的網址/leaderboard` → 應看到 JSON 陣列。
+   - 讀取：瀏覽器開 `https://你的網址/leaderboard` → 應看到 JSON 陣列。
 3. 回首頁點 **排行榜**，或開 `leaderboard.html`：
    - Console 應出現 `✅ 已從後端讀取 N 筆排行榜資料`，表格顯示成績（分數高、用時短優先）。
 
@@ -97,10 +106,10 @@ npx wrangler deploy
 
 ## 技術備註
 
-- **CORS**：Worker 回傳 `Access-Control-Allow-Origin: *`，所以前端能讀到回應、可由 HTTP 狀態碼確認寫入成敗（比舊的 Google `no-cors` 寫法可靠）。若要鎖定只允許自家網域，把 `worker.js` 裡 `CORS` 的 `'*'` 換成你的網址。
-- **KV 一致性**：KV 全球邊緣節點為「最終一致」，剛寫完馬上讀，偶爾可能還沒同步到當下節點。前端 `computeRank()` 已手動把剛送出的這筆併入排序，名次顯示不受影響。
+- **無競態**：所有寫入都導向同一個 DO 實例（`idFromName('global')`），請求序列化處理；DO 儲存的 input gate 保證讀-改-寫不交錯，多人同時交卷也不會掉資料。
+- **強一致性**：DO 儲存讀到的一定是最新值（不像 KV 最終一致）。前端 `computeRank()` 仍會把剛送出的這筆併入排序，網路延遲下名次顯示也穩定。
+- **CORS**：Worker 回傳 `Access-Control-Allow-Origin: *`，前端能讀到回應、由 HTTP 狀態碼判斷成敗。要鎖網域就把 `worker.js` 裡 `CORS` 的 `'*'` 換成你的網址。
 - **時間欄位**：以「秒（浮點數）」存入，顯示時格式化為 `mm:ss.xx`。
-- **防灌水（選用）**：目前 `/submit` 為公開可寫，適合內部活動。如需更嚴格，可在 `worker.js` 加：
-  - 工號白名單（只接受名單內的 `id`）。
-  - 共用密鑰（前端帶自訂 header，Worker 比對）。
-  - 簡易限流（用 KV 記錄各 IP / 工號的提交次數）。
+- **吞吐**：單一全域 DO 的寫入有上限（每秒數百筆），內部活動規模綽綽有餘。
+- **防灌水（選用）**：`/submit` 目前公開可寫，適合內部活動。如需更嚴格，可在 `worker.js` 加：工號白名單、共用密鑰（前端帶自訂 header 比對）、分數/時間合理範圍檢查、或簡易限流。
+- **從舊 KV 版遷移**：DO 用獨立儲存，部署後排行榜會從空白開始（舊 KV 測試資料不會帶過來）。如需保留舊資料，可寫一次性匯入腳本把 KV 內容寫入 DO。
