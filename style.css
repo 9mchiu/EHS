@@ -56,14 +56,14 @@ body {
 /* 首頁按鈕選單：固定寬度的垂直堆疊，所有按鈕「等寬」；flex + gap 保證 RWD 不重疊 */
 .home-menu {
     position: absolute;
-    top: 50%;
-    left: 4%;
+    top: 35%;
+    left: 3%;
     transform: translateY(-50%);
     z-index: 10;
     display: flex;
     flex-direction: column;
     gap: 16px;
-    width: clamp(240px, 50vw, 360px);
+    width: clamp(240px, 55vw, 150px);
 }
 
 /* 選單內所有按鈕等寬撐滿容器 */
@@ -973,8 +973,8 @@ body {
 /* ===================== EVENT SCHEDULE MODAL ===================== */
 
 .event-modal-content {
-    width: 92vw;
-    height: auto;
+    width: 85vw;
+    height: 46vw;
     aspect-ratio: 16 / 9;
 
     background: white;
