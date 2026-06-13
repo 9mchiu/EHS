@@ -195,6 +195,9 @@ body {
     right: 15px;
     width: 40px;
     height: 40px;
+    /* 覆寫 .btn 的 min-width:140px，否則會被撐成橢圓 */
+    min-width: 40px;
+    min-height: 40px;
     padding: 0;
     background-color: #d62828;
     color: white;
