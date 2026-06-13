@@ -101,16 +101,8 @@
 
                 <!-- 規則內容框 -->
                 <div class="rules-content">
-                    <!-- 規則圖片位置 (暫時使用背景圖，之後更換為規則圖) -->
+                    <!-- 規則圖片 (16:9，完整顯示不裁切) -->
                     <img src="./gamerules.png" alt="Game Rules" class="rules-image">
-                    <h2 class="rules-title">
-                        遊戲規則
-                        <span class="rules-title-en">Game Rules</span>
-                    </h2>
-                    <p class="rules-text">
-                        歡迎參加2026森林安全計畫測驗！<br>
-                        <span class="rules-text-en">Welcome to the 2026 Forest Safety Quiz!</span>
-                    </p>
                 </div>
                 
                 <!-- 同意按鈕 -->
@@ -267,16 +259,20 @@
         <!-- 角色資訊視窗：點擊角色頭後顯示的模態框 -->
         <div id="character-modal" class="modal">
             <div class="modal-content" id="modal-content-wrapper">
-                <!-- 視窗大小為背景大小的0.7縮放 -->
                 <button class="btn btn-modal-close" id="btn-modal-close">✕</button>
-                
-                <!-- 16:9 簡報圖片位置 (暫時使用背景圖，之後更換為宣傳資訊) -->
+
+                <!-- 上一張 -->
+                <button class="modal-nav modal-prev" id="btn-modal-prev" aria-label="Previous">‹</button>
+
+                <!-- 16:9 宣傳圖片 (完整顯示不裁切，可左右切換中／英文版) -->
                 <img id="modal-image" src="" alt="Character Info" class="modal-image">
-                
-                <!-- 字幕區域 (角色對應的宣傳文字) -->
-                <div class="modal-text">
-                    <h3 id="modal-character-name">角色名稱</h3>
-                    <p id="modal-character-description">角色描述</p>
+
+                <!-- 下一張 -->
+                <button class="modal-nav modal-next" id="btn-modal-next" aria-label="Next">›</button>
+
+                <!-- 頁碼指示 -->
+                <div class="modal-indicator">
+                    <span id="modal-image-index">1</span> / <span id="modal-image-total">2</span>
                 </div>
             </div>
         </div>

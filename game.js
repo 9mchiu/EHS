@@ -212,7 +212,11 @@ function bindEventListeners() {
             }
         });
     document.getElementById('btn-modal-close').addEventListener('click', closeCharacterModal);
-    
+
+    // 角色視窗左右切換（中文版 / 英文版）
+    document.getElementById('btn-modal-prev').addEventListener('click', showPrevModalImage);
+    document.getElementById('btn-modal-next').addEventListener('click', showNextModalImage);
+
     // 角色熱區點擊事件
     document.querySelectorAll('.character-hotspot').forEach(hotspot => {
         hotspot.addEventListener('click', function() {
@@ -741,7 +745,8 @@ function exportToExcel() {
     });
     
     // 建立下載連結
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    // 前置 UTF-8 BOM（﻿），讓 Excel 正確辨識編碼，避免中文亂碼
+    const blob = new Blob(['﻿' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     
@@ -769,55 +774,77 @@ function closeEventModal() {
 }
 
 // ===================== CHARACTER MODAL FUNCTIONS =====================
+
+// 角色視窗目前的圖片清單與索引（每個角色含中文版 + 英文版，可左右切換）
+let modalImages = [];
+let modalImageIndex = 0;
+
 /**
  * 打開角色資訊視窗
  * @param {number} characterId - 角色ID
  */
 function openCharacterModal(characterId) {
-    const characterData = {
-        1: {
-            name: "消防安全",
-            description: "消防安全宣導內容",
-            image: "./ERC.png"
-        },
-
-        2: {
-            name: "安全檢查",
-            description: "安全檢查宣導內容",
-            image: "./Safety.png"
-        },
-
-        3: {
-            name: "環境保護",
-            description: "環境保護宣導內容",
-            image: "./Env.png"
-        },
-
-        4: {
-            name: "製程管理",
-            description: "製程管理宣導內容",
-            image: "./PSM.png"
-        },
-
-        5: {
-            name: "健康保健",
-            description: "健康保健宣導內容",
-            image: "./HC.png"
-        }
+    // 每個角色對應兩張 16:9 圖片：[中文版, 英文版]
+    const characterImages = {
+        1: ['./ERC.png', './ERC_ENG.png'],       // 消防安全
+        2: ['./Safety.png', './Safety_ENG.png'],  // 安全檢查
+        3: ['./Env.png', './Env_ENG.png'],        // 環境保護
+        4: ['./PSM.png', './PSM_ENG.png'],        // 製程管理
+        5: ['./HC.png', './HC_ENG.png'],          // 健康保健
     };
-    
-    const data = characterData[characterId];
-    if (data) {
-        document.getElementById('modal-character-name').textContent = data.name;
-        document.getElementById('modal-character-description').textContent = data.description;
-        const modalImage = document.getElementById("modal-image");
 
-        modalImage.src = data.image;
+    const images = characterImages[characterId];
+    if (!images) return;
 
-        const modal = document.getElementById('character-modal');
-        modal.classList.add('active');
-        console.log(`🎭 打開角色視窗: 角色 ${characterId}`);
-    }
+    modalImages = images;
+    modalImageIndex = 0;
+    renderModalImage();
+
+    const modal = document.getElementById('character-modal');
+    modal.classList.add('active');
+    console.log(`🎭 打開角色視窗: 角色 ${characterId}`);
+}
+
+/**
+ * 依目前索引渲染角色視窗圖片，並更新頁碼與切換鈕顯示。
+ */
+function renderModalImage() {
+    if (modalImages.length === 0) return;
+
+    const modalImage = document.getElementById('modal-image');
+    if (modalImage) modalImage.src = modalImages[modalImageIndex];
+
+    const indexEl = document.getElementById('modal-image-index');
+    const totalEl = document.getElementById('modal-image-total');
+    if (indexEl) indexEl.textContent = String(modalImageIndex + 1);
+    if (totalEl) totalEl.textContent = String(modalImages.length);
+
+    // 只有一張圖時，隱藏左右切換鈕與頁碼
+    const showNav = modalImages.length > 1;
+    ['btn-modal-prev', 'btn-modal-next'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = showNav ? '' : 'none';
+    });
+    const indicator = document.querySelector('.modal-indicator');
+    if (indicator) indicator.style.display = showNav ? '' : 'none';
+}
+
+/**
+ * 切換到上一張圖片（循環）。
+ */
+function showPrevModalImage() {
+    if (modalImages.length === 0) return;
+    modalImageIndex = (modalImageIndex - 1 + modalImages.length) % modalImages.length;
+    renderModalImage();
+}
+
+/**
+ * 切換到下一張圖片（循環）。
+ */
+function showNextModalImage() {
+    if (modalImages.length === 0) return;
+    modalImageIndex = (modalImageIndex + 1) % modalImages.length;
+    renderModalImage();
 }
 
 /**
