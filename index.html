@@ -49,40 +49,42 @@
             </div>
             
             <!-- 角色互動 - 顯示泡泡訊息 -->
+            <!-- data-cx / data-cy：角色中心在背景圖(16:9)上的百分比座標。
+                 實際像素位置由 game.js 依 object-fit:cover 計算，確保各螢幕比例都對準角色。 -->
             <!-- 角色1位置 (ERC) -->
-            <div class="character-hotspot" data-character="1" style="left: 16%; top: 57%;">
+            <div class="character-hotspot" data-character="1" data-cx="20" data-cy="62">
                 <div class="character-bubble">
                     <p class="bubble-text">點我閱讀<br>消防安全</p>
                     <p class="bubble-text-en">Click to Read<br>Fire Safety</p>
                 </div>
             </div>
-            
+
             <!-- 角色2位置 (工安) -->
-            <div class="character-hotspot" data-character="2" style="left: 30%; top: 70%;">
+            <div class="character-hotspot" data-character="2" data-cx="38" data-cy="70">
                 <div class="character-bubble">
                     <p class="bubble-text">點我閱讀<br>安全檢查</p>
                     <p class="bubble-text-en">Click to Read<br>Safety Inspection</p>
                 </div>
             </div>
-            
+
             <!-- 角色3位置 (環保) -->
-            <div class="character-hotspot" data-character="3" style="left: 53%; top: 75%;">
+            <div class="character-hotspot" data-character="3" data-cx="58" data-cy="74">
                 <div class="character-bubble">
                     <p class="bubble-text">點我閱讀<br>環境保護</p>
                     <p class="bubble-text-en">Click to Read<br>Environmental Protection</p>
                 </div>
             </div>
-            
+
             <!-- 角色4位置 (PSM) -->
-            <div class="character-hotspot" data-character="4" style="left: 60%; top: 57%;">
+            <div class="character-hotspot" data-character="4" data-cx="70" data-cy="62">
                 <div class="character-bubble">
                     <p class="bubble-text">點我閱讀<br>製程管理</p>
                     <p class="bubble-text-en">Click to Read<br>Process Management</p>
                 </div>
             </div>
-            
+
             <!-- 角色5位置 (保健中心) -->
-            <div class="character-hotspot" data-character="5" style="left: 79%; top: 75%;">
+            <div class="character-hotspot" data-character="5" data-cx="85" data-cy="77">
                 <div class="character-bubble">
                     <p class="bubble-text">點我閱讀<br>健康保健</p>
                     <p class="bubble-text-en">Click to Read<br>Healthcare</p>
@@ -266,6 +268,12 @@
 
                 <!-- 16:9 宣傳圖片 (完整顯示不裁切，可左右切換中／英文版) -->
                 <img id="modal-image" src="" alt="Character Info" class="modal-image">
+
+                <!-- 圖片不存在時的佔位畫面（例如英文版圖檔尚未補上） -->
+                <div id="modal-image-placeholder" class="modal-placeholder" style="display:none;">
+                    <p class="modal-placeholder-zh">圖片準備中</p>
+                    <p class="modal-placeholder-en">Coming soon</p>
+                </div>
 
                 <!-- 下一張 -->
                 <button class="modal-nav modal-next" id="btn-modal-next" aria-label="Next">›</button>

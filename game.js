@@ -224,12 +224,72 @@ function bindEventListeners() {
             openCharacterModal(characterId);
         });
     });
+
+    // 依背景圖(object-fit:cover)實際範圍定位角色熱區，並隨視窗縮放重算
+    positionHotspots();
+    window.addEventListener('resize', positionHotspots);
     
     // 點擊模態框背景時關閉
     document.getElementById('character-modal').addEventListener('click', function(e) {
         if (e.target === this) {
             closeCharacterModal();
         }
+    });
+}
+
+// ===================== CHARACTER HOTSPOT POSITIONING =====================
+// 背景圖原始尺寸（background.png）。用來換算 object-fit:cover 後的實際顯示範圍。
+const BG_IMAGE_W = 1280;
+const BG_IMAGE_H = 720;
+
+// 熱區大小（以背景圖實際顯示寬／高的比例計），放大到足以蓋住整個角色，方便點擊。
+const HOTSPOT_W_RATIO = 0.14; // 顯示寬的 14%
+const HOTSPOT_H_RATIO = 0.30; // 顯示高的 30%
+
+/**
+ * 依 background.png 的 object-fit:cover 實際顯示範圍，將每個角色熱區
+ * 對準其在圖中的中心點（data-cx / data-cy 為圖內百分比座標）。
+ * 任何螢幕比例都能對準角色，視窗縮放時也會重新計算。
+ */
+function positionHotspots() {
+    const hotspots = document.querySelectorAll('.character-hotspot');
+    if (hotspots.length === 0) return;
+
+    // 背景圖填滿整個視窗（#home-page 為 100% 視窗大小）
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    // 計算 cover 後的顯示尺寸與偏移（被裁切的方向會有負偏移）
+    const imgRatio = BG_IMAGE_W / BG_IMAGE_H;
+    const viewRatio = vw / vh;
+
+    let renderW, renderH, offsetX, offsetY;
+    if (viewRatio > imgRatio) {
+        // 視窗較寬 → 以寬為準縮放，上下被裁切
+        renderW = vw;
+        renderH = vw / imgRatio;
+        offsetX = 0;
+        offsetY = (vh - renderH) / 2;
+    } else {
+        // 視窗較窄 → 以高為準縮放，左右被裁切
+        renderH = vh;
+        renderW = vh * imgRatio;
+        offsetY = 0;
+        offsetX = (vw - renderW) / 2;
+    }
+
+    hotspots.forEach(hotspot => {
+        const cx = parseFloat(hotspot.dataset.cx);
+        const cy = parseFloat(hotspot.dataset.cy);
+        if (Number.isNaN(cx) || Number.isNaN(cy)) return;
+
+        const px = offsetX + (cx / 100) * renderW;
+        const py = offsetY + (cy / 100) * renderH;
+
+        hotspot.style.left = `${px}px`;
+        hotspot.style.top = `${py}px`;
+        hotspot.style.width = `${renderW * HOTSPOT_W_RATIO}px`;
+        hotspot.style.height = `${renderH * HOTSPOT_H_RATIO}px`;
     });
 }
 
@@ -812,7 +872,19 @@ function renderModalImage() {
     if (modalImages.length === 0) return;
 
     const modalImage = document.getElementById('modal-image');
-    if (modalImage) modalImage.src = modalImages[modalImageIndex];
+    const placeholder = document.getElementById('modal-image-placeholder');
+    if (modalImage) {
+        // 圖檔存在 → 顯示圖片；不存在（例如英文版尚未補上）→ 顯示「圖片準備中」佔位畫面
+        modalImage.onload = function () {
+            modalImage.style.display = '';
+            if (placeholder) placeholder.style.display = 'none';
+        };
+        modalImage.onerror = function () {
+            modalImage.style.display = 'none';
+            if (placeholder) placeholder.style.display = 'flex';
+        };
+        modalImage.src = modalImages[modalImageIndex];
+    }
 
     const indexEl = document.getElementById('modal-image-index');
     const totalEl = document.getElementById('modal-image-total');
