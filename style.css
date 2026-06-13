@@ -270,7 +270,8 @@ body {
     white-space: nowrap;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
     animation: bubbleAppear 0.3s ease-out;
-    bottom: 120%;
+    bottom: 100%;
+    margin-bottom: 6px;
     left: 50%;
     transform: translateX(-50%);
 }
@@ -321,10 +322,11 @@ body {
    避免被選單(z-index 較高)擋住；箭頭改為指向左邊的角色。 */
 .character-hotspot[data-character="1"] .character-bubble {
     bottom: auto;
-    top: 50%;
+    top: 26%;                 /* 對齊角色頭部高度（頭在方塊上方） */
     left: 100%;
     transform: translateY(-50%);
-    margin-left: 14px;
+    margin-bottom: 0;
+    margin-left: 10px;        /* 縮短與角色的水平間距 */
     animation: bubbleAppearRight 0.3s ease-out;
 }
 
