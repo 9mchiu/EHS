@@ -493,11 +493,12 @@ body {
 }
 
 .rules-content {
-    width: 92%;
-    max-width: 1500px;
+    /* 寬度收縮貼合規則圖片，避免左右出現大片白邊 */
+    width: fit-content;
+    max-width: 92%;
     background-color: white;
     border-radius: 15px;
-    padding: 16px;
+    padding: 12px;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
     text-align: center;
     line-height: 0;
