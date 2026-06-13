@@ -745,7 +745,8 @@ function exportToExcel() {
     });
     
     // 建立下載連結
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    // 前置 UTF-8 BOM（﻿），讓 Excel 正確辨識編碼，避免中文亂碼
+    const blob = new Blob(['﻿' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     
