@@ -494,6 +494,7 @@ body {
 
 .rules-content {
     /* 寬度收縮貼合規則圖片，避免左右出現大片白邊 */
+    position: relative;
     width: fit-content;
     max-width: 92%;
     background-color: white;
@@ -1082,7 +1083,8 @@ body {
 
 #game-rules-page .btn-close {
     position: absolute;
-    top: 25px;
-    right: 25px;
+    /* 相對白框(.rules-content)定位，貼在右上角並略微外露，隨白框寬度移動 */
+    top: -14px;
+    right: -14px;
     z-index: 100;
 }
