@@ -103,8 +103,25 @@
                         ✕
                     </button>
 
-                    <!-- 規則圖片 (16:9，完整顯示不裁切) -->
-                    <img src="./gamerules.png" alt="Game Rules" class="rules-image">
+                    <!-- 上一張（中／英切換） -->
+                    <button class="modal-nav modal-prev" id="btn-rules-prev" aria-label="Previous">‹</button>
+
+                    <!-- 規則圖片 (16:9，完整顯示不裁切，可左右切換中／英文版) -->
+                    <img id="rules-image" src="./gamerules.png" alt="Game Rules" class="rules-image">
+
+                    <!-- 圖片不存在時的佔位畫面 -->
+                    <div id="rules-image-placeholder" class="modal-placeholder" style="display:none;">
+                        <p class="modal-placeholder-zh">圖片準備中</p>
+                        <p class="modal-placeholder-en">Coming soon</p>
+                    </div>
+
+                    <!-- 下一張 -->
+                    <button class="modal-nav modal-next" id="btn-rules-next" aria-label="Next">›</button>
+
+                    <!-- 頁碼指示 -->
+                    <div class="modal-indicator" id="rules-indicator">
+                        <span id="rules-image-index">1</span> / <span id="rules-image-total">2</span>
+                    </div>
                 </div>
                 
                 <!-- 同意按鈕 -->

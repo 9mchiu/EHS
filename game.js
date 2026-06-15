@@ -180,6 +180,8 @@ function bindEventListeners() {
     // 遊戲規則頁面按鈕
     document.getElementById('btn-agree-start').addEventListener('click', beginQuiz);
     document.getElementById('btn-close-rules').addEventListener('click', backToHome);
+    document.getElementById('btn-rules-prev').addEventListener('click', showPrevRulesImage);
+    document.getElementById('btn-rules-next').addEventListener('click', showNextRulesImage);
     // 輸入工號
     document.getElementById('btn-confirm-employee').addEventListener('click', confirmEmployeeId);
     // 測驗頁面按鈕
@@ -336,6 +338,7 @@ function startQuiz() {
     console.log('🎬 使用者點擊「開始測驗」');
     gameState.quizStarted = true;
     showPage('game-rules-page');
+    initRulesImage();          // 進規則頁時重設為中文版並準備切換鈕
     playBackgroundMusic();
 }
 
@@ -925,6 +928,65 @@ function showNextModalImage() {
 function closeCharacterModal() {
     const modal = document.getElementById('character-modal');
     modal.classList.remove('active');
+}
+
+// ===================== GAME RULES IMAGE (中／英切換) =====================
+// 遊戲規則頁：中文版與英文版兩張圖，可用左右按鈕切換（與角色視窗相同行為）
+const rulesImages = ['./gamerules.png', './gamerules_ENG.png'];
+let rulesImageIndex = 0;
+
+/**
+ * 重設並渲染規則圖（每次進入規則頁時呼叫，預設顯示中文版）。
+ */
+function initRulesImage() {
+    rulesImageIndex = 0;
+    renderRulesImage();
+}
+
+/**
+ * 依目前索引渲染規則圖，並更新頁碼與切換鈕顯示。
+ */
+function renderRulesImage() {
+    const img = document.getElementById('rules-image');
+    const placeholder = document.getElementById('rules-image-placeholder');
+    if (img) {
+        // 圖檔存在 → 顯示；不存在（例如英文版尚未補上）→ 顯示「圖片準備中」佔位畫面
+        img.onload = function () {
+            img.style.display = '';
+            if (placeholder) placeholder.style.display = 'none';
+        };
+        img.onerror = function () {
+            img.style.display = 'none';
+            if (placeholder) placeholder.style.display = 'flex';
+        };
+        img.src = rulesImages[rulesImageIndex];
+    }
+
+    const indexEl = document.getElementById('rules-image-index');
+    const totalEl = document.getElementById('rules-image-total');
+    if (indexEl) indexEl.textContent = String(rulesImageIndex + 1);
+    if (totalEl) totalEl.textContent = String(rulesImages.length);
+
+    // 只有一張圖時，隱藏左右切換鈕與頁碼
+    const showNav = rulesImages.length > 1;
+    ['btn-rules-prev', 'btn-rules-next'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = showNav ? '' : 'none';
+    });
+    const indicator = document.getElementById('rules-indicator');
+    if (indicator) indicator.style.display = showNav ? '' : 'none';
+}
+
+/** 規則圖切換到上一張（循環）。 */
+function showPrevRulesImage() {
+    rulesImageIndex = (rulesImageIndex - 1 + rulesImages.length) % rulesImages.length;
+    renderRulesImage();
+}
+
+/** 規則圖切換到下一張（循環）。 */
+function showNextRulesImage() {
+    rulesImageIndex = (rulesImageIndex + 1) % rulesImages.length;
+    renderRulesImage();
 }
 
 // ===================== UTILITY FUNCTIONS =====================
