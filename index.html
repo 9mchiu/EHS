@@ -212,14 +212,47 @@
                         </div>
                     </div>
                     
-                    <button id="btn-back-home" class="btn btn-primary">
-                        返回首頁
-                        <span class="btn-label-en">Back to Home</span>
-                    </button>
+                    <div class="result-actions">
+                        <button id="btn-review-wrong" class="btn btn-secondary">
+                            檢視錯題
+                            <span class="btn-label-en">Review Wrong Answers</span>
+                        </button>
+
+                        <button id="btn-back-home" class="btn btn-primary">
+                            返回首頁
+                            <span class="btn-label-en">Back to Home</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
-        
+
+        <!-- ===================== QUIZ REVIEW PAGE (錯題回顧) ===================== -->
+        <!-- 測驗結束後，回顧自己答錯的題目（標示你的選擇與正確答案） -->
+        <div id="quiz-review-page" class="page">
+            <div class="review-container">
+                <div class="review-header">
+                    <h2 class="review-title">
+                        錯題回顧
+                        <span class="review-title-en">Review Wrong Answers</span>
+                    </h2>
+                    <div class="review-actions">
+                        <button id="btn-review-back" class="btn btn-secondary">
+                            返回成績
+                            <span class="btn-label-en">Back to Result</span>
+                        </button>
+                        <button id="btn-review-home" class="btn btn-primary">
+                            返回首頁
+                            <span class="btn-label-en">Back to Home</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 錯題清單（透過 JavaScript 動態生成） -->
+                <div class="review-list" id="review-list"></div>
+            </div>
+        </div>
+
         <!-- ===================== LEADERBOARD PAGE ===================== -->
         <!-- 排行榜頁面：顯示全部排行榜資訊 -->
         <div id="leaderboard-page" class="page">

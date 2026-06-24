@@ -145,6 +145,21 @@ const quizQuestions = [
 // 一頁兩題 → 依題數自動計算總頁數（避免日後改題數時錯位）
 gameState.totalQuizPages = Math.ceil(quizQuestions.length / 2);
 
+// 本局實際出題用的清單（每次遊玩會洗牌成不同順序）；預設先放原始順序
+gameState.questions = quizQuestions.slice();
+
+/**
+ * Fisher–Yates 洗牌（原地打亂並回傳同一陣列）。
+ * 用於每次遊玩時隨機化出題順序；作答以題目 id 記錄，故計分不受順序影響。
+ */
+function shuffleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
 // 背景音樂檔路徑（留空字串 = 不播放）。要啟用就填音檔路徑，例如 './bgm.mp3'
 const BG_MUSIC_SRC = '';
 
@@ -192,6 +207,13 @@ function bindEventListeners() {
     
     // 結果頁面按鈕
     document.getElementById('btn-back-home').addEventListener('click', backToHome);
+    document.getElementById('btn-review-wrong').addEventListener('click', showWrongReview);
+
+    // 錯題回顧頁按鈕
+    document.getElementById('btn-review-back').addEventListener('click', function () {
+        showPage('quiz-result-page');
+    });
+    document.getElementById('btn-review-home').addEventListener('click', backToHome);
     
     // 排行榜頁面按鈕
     document.getElementById('btn-search').addEventListener('click', searchLeaderboard);
@@ -379,6 +401,9 @@ function startQuizAfterEmployee() {
     gameState.answers = {};
     gameState.score = 0;
 
+    // 每次遊玩隨機打亂出題順序
+    gameState.questions = shuffleArray(quizQuestions.slice());
+
     renderQuizQuestions();
     updateProgress(); // 重置側欄作答進度為 0
     showPage('quiz-page');
@@ -432,13 +457,13 @@ function renderQuizQuestions() {
     const container = document.getElementById('questions-container');
     container.innerHTML = '';
     
-    // 計算當前頁面顯示的題目索引
+    // 計算當前頁面顯示的題目索引（依本局洗牌後的順序）
     const startIndex = (gameState.currentQuizPage - 1) * 2;
-    const endIndex = Math.min(startIndex + 2, quizQuestions.length);
-    
+    const endIndex = Math.min(startIndex + 2, gameState.questions.length);
+
     // 顯示題目
     for (let i = startIndex; i < endIndex; i++) {
-        const question = quizQuestions[i];
+        const question = gameState.questions[i];
         const questionBlock = createQuestionElement(question, i + 1);
         container.appendChild(questionBlock);
     }
@@ -505,7 +530,7 @@ function createQuestionElement(question, questionNumber) {
  */
 function calculateScore() {
     let score = 0;
-    quizQuestions.forEach(question => {
+    gameState.questions.forEach(question => {
         if (gameState.answers[question.id] === question.correct) {
             score += 5;
         }
@@ -518,11 +543,11 @@ function calculateScore() {
  * 更新側欄「作答進度」（已作答題數 / 總題數），不洩漏分數。
  */
 function updateProgress() {
-    const answered = quizQuestions.filter(
+    const answered = gameState.questions.filter(
         q => gameState.answers[q.id] !== undefined
     ).length;
     const el = document.getElementById('score');
-    if (el) el.textContent = `${answered} / ${quizQuestions.length}`;
+    if (el) el.textContent = `${answered} / ${gameState.questions.length}`;
 }
 
 /**
@@ -572,7 +597,7 @@ async function submitQuiz() {
     console.log('📤 提交測驗');
 
     // 檢查是否每題都已作答
-    const unanswered = quizQuestions.filter(
+    const unanswered = gameState.questions.filter(
         q => gameState.answers[q.id] === undefined
     );
     if (unanswered.length > 0) {
@@ -696,6 +721,68 @@ function showQuizResult(score, time, rank) {
     
     // 顯示結果頁面
     showPage('quiz-result-page');
+}
+
+/**
+ * 錯題回顧：列出本局答錯的題目，標示「你的選擇」與「正確答案」。
+ * 依本局出題順序顯示；全對則顯示恭喜訊息。
+ */
+function showWrongReview() {
+    const list = document.getElementById('review-list');
+    if (!list) return;
+    list.innerHTML = '';
+
+    // 找出答錯（含未作答）的題目，維持本局出題順序
+    const wrong = gameState.questions.filter(
+        q => gameState.answers[q.id] !== q.correct
+    );
+
+    if (wrong.length === 0) {
+        list.innerHTML =
+            '<div class="review-empty">' +
+            '<p class="review-empty-zh">🎉 全部答對，沒有錯題！</p>' +
+            '<p class="review-empty-en">All correct — no wrong answers!</p>' +
+            '</div>';
+        showPage('quiz-review-page');
+        return;
+    }
+
+    wrong.forEach((q, idx) => {
+        const userIdx = gameState.answers[q.id]; // 可能為 undefined（未作答）
+
+        let optionsHTML = '';
+        q.options.forEach((opt, i) => {
+            let cls = 'review-option';
+            let tag = '';
+            if (i === q.correct) {
+                cls += ' correct';
+                tag = '✓ 正確答案 / Correct';
+            } else if (i === userIdx) {
+                cls += ' wrong';
+                tag = '✗ 你的作答 / Your answer';
+            }
+            optionsHTML +=
+                `<div class="${cls}">` +
+                `<span class="review-opt-text">${String.fromCharCode(65 + i)}. ${opt.text}` +
+                `<span class="review-opt-en">${opt.textEn}</span></span>` +
+                (tag ? `<span class="review-tag">${tag}</span>` : '') +
+                `</div>`;
+        });
+
+        const yourPick = (userIdx === undefined)
+            ? '（未作答 / Not answered）'
+            : '';
+
+        const item = document.createElement('div');
+        item.className = 'review-item';
+        item.innerHTML =
+            `<div class="review-q">${idx + 1}. ${q.text} ${yourPick}</div>` +
+            `<div class="review-q-en">${q.textEn}</div>` +
+            `<div class="review-options">${optionsHTML}</div>`;
+        list.appendChild(item);
+    });
+
+    showPage('quiz-review-page');
 }
 
 // ===================== LEADERBOARD FUNCTIONS =====================
