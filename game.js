@@ -532,7 +532,7 @@ function calculateScore() {
     let score = 0;
     gameState.questions.forEach(question => {
         if (gameState.answers[question.id] === question.correct) {
-            score += 5;
+            score += 10;
         }
     });
     gameState.score = score;
@@ -715,7 +715,7 @@ function closeQuiz() {
  */
 function showQuizResult(score, time, rank) {
     // 更新結果顯示
-    document.getElementById('result-score').textContent = `${score} / 50`;
+    document.getElementById('result-score').textContent = `${score} / 100`;
     document.getElementById('result-time').textContent = formatTime(time);
     document.getElementById('result-rank').textContent = `#${rank}`;
     
@@ -830,7 +830,7 @@ function renderLeaderboardTable() {
         const cells = [
             String(index + 1),
             entry.id,
-            `${entry.score} / 50`,
+            `${entry.score} / 100`,
             formatTime(entry.time),
         ];
 
@@ -891,7 +891,7 @@ function exportToExcel() {
 
     gameState.leaderboard.forEach((entry, index) => {
         const timeStr = formatTime(entry.time);
-        csvContent += `${index + 1},"${csvCell(entry.id)}","${entry.score}/50","${timeStr}","${csvCell(entry.date)}"\n`;
+        csvContent += `${index + 1},"${csvCell(entry.id)}","${entry.score}/100","${timeStr}","${csvCell(entry.date)}"\n`;
     });
     
     // 建立下載連結
@@ -1129,11 +1129,11 @@ function stopBackgroundMusic() {
  */
 function loadSampleLeaderboardData() {
     gameState.leaderboard = [
-        { id: 'EMP0001', score: 50, time: 120.50, date: '2026-06-07 10:30' },
-        { id: 'EMP0002', score: 50, time: 125.30, date: '2026-06-07 10:25' },
-        { id: 'EMP0003', score: 45, time: 145.20, date: '2026-06-07 10:20' },
-        { id: 'EMP0004', score: 40, time: 180.15, date: '2026-06-07 10:15' },
-        { id: 'EMP0005', score: 35, time: 200.80, date: '2026-06-07 10:10' }
+        { id: 'EMP0001', score: 100, time: 120.50, date: '2026-06-07 10:30' },
+        { id: 'EMP0002', score: 100, time: 125.30, date: '2026-06-07 10:25' },
+        { id: 'EMP0003', score: 90, time: 145.20, date: '2026-06-07 10:20' },
+        { id: 'EMP0004', score: 80, time: 180.15, date: '2026-06-07 10:15' },
+        { id: 'EMP0005', score: 70, time: 200.80, date: '2026-06-07 10:10' }
     ];
     localStorage.setItem('leaderboard', JSON.stringify(gameState.leaderboard));
 }

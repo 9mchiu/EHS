@@ -836,11 +836,13 @@ body {
 
 /* 排行表 */
 .leaderboard-table-wrapper {
-    flex: 1;
+    flex: 1 1 auto;
     background-color: white;
     border: 3px solid #40916c;
     border-radius: 10px;
-    overflow: hidden;
+    /* 內容過多時可垂直捲動；min-height:0 讓 flex 子元素正確收縮(否則會超出視窗無法捲) */
+    overflow-y: auto;
+    min-height: 0;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
