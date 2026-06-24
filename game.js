@@ -22,19 +22,19 @@ let gameState = {
 const quizQuestions = [
     {
         id: 1,
-        text: "下列何者是最重要的安全防護措施？",
-        textEn: "Which of the following is the most important safety measure?",
+        text: "火災發生時，最正確的第一個動作是？",
+        textEn: " What is the most appropriate first action when a fire occurs?​",
         options: [
-            { text: "正確戴著安全帽", textEn: "Wearing a hard hat correctly" },
-            { text: "定期檢查設備", textEn: "Regular equipment inspection" },
-            { text: "遵守操作規則", textEn: "Following operating procedures" },
-            { text: "以上皆是", textEn: "All of the above" }
+            { text: "嘗試滅火", textEn: "Try to extinguish the fire​" },
+            { text: "先收拾重要物品再逃​", textEn: "Gather important belongings before escaping​" },
+            { text: "立即通報並逃生", textEn: "Immediately report and evacuate​" },
+            { text: "躲起來等待救援​", textEn: "Hide and wait for rescue​" }
         ],
         correct: 3
     },
     {
         id: 2,
-        text: "發生緊急情況時，應該立即通知誰？",
+        text: "火場逃生時，遇到濃煙應如何行動？",
         textEn: "Who should be notified immediately in case of emergency?",
         options: [
             { text: "直屬主管", textEn: "Direct supervisor" },
