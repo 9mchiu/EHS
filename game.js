@@ -35,110 +35,110 @@ const quizQuestions = [
     {
         id: 2,
         text: "火場逃生時，遇到濃煙應如何行動？",
-        textEn: "Who should be notified immediately in case of emergency?",
+        textEn: "How should you act when encountering heavy smoke during a fire escape?​",
         options: [
-            { text: "直屬主管", textEn: "Direct supervisor" },
-            { text: "安全人員", textEn: "Safety personnel" },
-            { text: "緊急聯絡人", textEn: "Emergency contact" },
-            { text: "所有人員", textEn: "All personnel" }
+            { text: "站著快速奔跑​", textEn: "Stand and run quickly​" },
+            { text: "憋氣衝過去", textEn: "Hold your breath and rush through​" },
+            { text: "低姿勢前進", textEn: "Move forward in a low posture​" },
+            { text: "躲在原地不動", textEn: "Stay where you are and do not move​" }
         ],
-        correct: 0
+        correct: 3
     },
     {
         id: 3,
-        text: "個人防護裝備(PPE)應該在何時使用？",
-        textEn: "When should Personal Protective Equipment (PPE) be used?",
+        text: "「Live Safe」的核心精神是什麼？​",
+        textEn: "What is the core principle of “Live Safe”?​",
         options: [
-            { text: "工作開始前", textEn: "Before starting work" },
-            { text: "工作進行中", textEn: "During work" },
-            { text: "工作結束前", textEn: "Before work ends" },
-            { text: "全程使用", textEn: "Throughout the entire process" }
+            { text: "只在高風險作業中注意安全", textEn: "Only focus on safety during high-risk operations" },
+            { text: "安全是公司的責任", textEn: "Safety is the company’s responsibility​" },
+            { text: "每個人都有責任確保自己與他人的安全", textEn: "Everyone is responsible for ensuring their own safety and the safety of others​" },
+            { text: "安全只需遵守法規即可", textEn: "Safety only requires compliance with regulations​" }
         ],
         correct: 3
     },
     {
         id: 4,
-        text: "在高空作業時，安全繩的檢查頻率應該是？",
-        textEn: "How often should safety ropes be checked during high-altitude work?",
+        text: "下列何者是「Live Safe」的行為？",
+        textEn: "Which of the following is a “Live Safe” behavior?​",
         options: [
-            { text: "每週一次", textEn: "Once a week" },
-            { text: "每月一次", textEn: "Once a month" },
-            { text: "使用前檢查", textEn: "Before each use" },
-            { text: "每年一次", textEn: "Once a year" }
+            { text: "未經授權或違反安全規定或控制​", textEn: "Performing work without authorization or in violation of safety rules or controls​​" },
+            { text: "違反特殊作業許可規定​", textEn: "Violating special work permit requirements​" },
+            { text: "未申請安全變更管理（SMOC）​", textEn: "Failing to apply for Safety Management of Change (SMOC)​" },
+            { text: "遵守交通安全規定​", textEn: "Complying with traffic safety regulations​" }
         ],
-        correct: 2
+        correct: 4
     },
     {
         id: 5,
-        text: "工作環境不安全時應該採取什麼行動？",
-        textEn: "What action should be taken if the work environment is unsafe?",
+        text: "使用紅色特性標籤標示的的廢棄物為哪一類的廢棄物?​",
+        textEn: "Which category of waste is labeled with a red characteristic tag?​​",
         options: [
-            { text: "繼續工作", textEn: "Continue working" },
-            { text: "停止工作並報告", textEn: "Stop work and report" },
-            { text: "自行修復", textEn: "Fix it yourself" },
-            { text: "忽視問題", textEn: "Ignore the issue" }
+            { text: "有機類", textEn: "Organic​" },
+            { text: "酸類​", textEn: "Acid​" },
+            { text: "鹼類​", textEn: "Alkali​" },
+            { text: "特殊類", textEn: "Special​" }
         ],
         correct: 1
     },
     {
         id: 6,
-        text: "安全訓練的主要目的是？",
-        textEn: "What is the main purpose of safety training?",
+        text: "台中二廠(MTB)與台中四廠(AATT)加總碳排放量落在哪個區間？",
+        textEn: "What is the total carbon emission range for Taichung Plant 2 (MTB) and Taichung Plant 4 (AATT) combined?​",
         options: [
-            { text: "滿足法規要求", textEn: "Meet regulatory requirements" },
-            { text: "預防工作傷害", textEn: "Prevent workplace injuries" },
-            { text: "提高工作效率", textEn: "Improve work efficiency" },
-            { text: "降低成本", textEn: "Reduce costs" }
+            { text: "20-30萬噸/CO2e​", textEn: "200,000–300,000 tons CO₂e​" },
+            { text: "31-50萬噸/CO2e​", textEn: "310,000–500,000 tons CO₂e​" },
+            { text: "51-100萬噸/CO2e", textEn: "510,000–1,000,000 tons CO₂e​" },
+            { text: "101萬噸/CO2e以上", textEn: "Above 1,010,000 tons CO₂e​" }
         ],
         correct: 1
     },
     {
         id: 7,
-        text: "發現有毒物質洩漏時，應該首先？",
-        textEn: "What should be done first when discovering a hazardous substance leak?",
+        text: "SMOC 的主要目的為何？",
+        textEn: "What is the main purpose of SMOC?​",
         options: [
-            { text: "清理洩漏物", textEn: "Clean up the spill" },
-            { text: "疏散人員到安全地點", textEn: "Evacuate personnel to a safe location" },
-            { text: "通知管理層", textEn: "Notify management" },
-            { text: "查找原因", textEn: "Find the cause" }
+            { text: "增加生產速度​", textEn: "Increase production speed​" },
+            { text: "管控變更帶來的環安衛風險​", textEn: "Control EHS risks caused by changes​" },
+            { text: "減少人員訓練時間​", textEn: "Reduce personnel training time​" },
+            { text: "降低設備成本", textEn: "Lower equipment costs​" }
         ],
-        correct: 1
+        correct: 2
     },
     {
         id: 8,
-        text: "工作場所消防安全的重要性是？",
-        textEn: "What is the importance of workplace fire safety?",
+        text: "以下哪一種情況需要申請 SMOC？",
+        textEn: "Which of the following situations requires applying for SMOC?​",
         options: [
-            { text: "保護財產", textEn: "Protect property" },
-            { text: "保護人員生命安全", textEn: "Protect personnel lives" },
-            { text: "維持營運", textEn: "Maintain operations" },
-            { text: "滿足保險要求", textEn: "Meet insurance requirements" }
+            { text: "每天依 SOP 正常作業", textEn: "Daily operations following SOP​" },
+            { text: "無任何變更的例行巡檢​", textEn: "Routine inspection with no changes​" },
+            { text: "新增化學品或改變使用量​", textEn: "Adding new chemicals or changing usage quantity​" },
+            { text: "個人自行調整工作時間​", textEn: "Individually adjusting working hours​" }
         ],
-        correct: 1
+        correct: 3
     },
     {
         id: 9,
-        text: "工作中感到不適時應該？",
-        textEn: "What should be done if you feel unwell during work?",
+        text: "假設不小心在公司內受傷，或是在上下班途中發生事故，最慢應幾小時內通報保健中心?​",
+        textEn: "If you are accidentally injured at the company or involved in an incident while commuting, within how many hours must you report it to the Health Center at the latest?​",
         options: [
-            { text: "繼續工作直到下班", textEn: "Continue working until end of shift" },
-            { text: "立即報告主管", textEn: "Report to supervisor immediately" },
-            { text: "自行決定是否就醫", textEn: "Decide yourself whether to see a doctor" },
-            { text: "告訴同事", textEn: "Tell colleagues" }
+            { text: "24小時內​", textEn: "Within 24 hours" },
+            { text: "48小時內​", textEn: "Within 48 hours" },
+            { text: "72小時內​", textEn: "Within 72 hours" },
+            { text: "不用通報​", textEn: "No need to report​" }
         ],
         correct: 1
     },
     {
         id: 10,
-        text: "定期安全檢查的頻率應為？",
-        textEn: "What should be the frequency of regular safety inspections?",
+        text: "保健中心內有什麼健康測量儀器設備可以使用?​",
+        textEn: "What health measurement equipment is available in the Health Center?​",
         options: [
-            { text: "每年一次", textEn: "Once a year" },
-            { text: "每季一次", textEn: "Once a quarter" },
-            { text: "每月至少一次", textEn: "At least once a month" },
-            { text: "依組織規定", textEn: "As per organization policy" }
+            { text: "血壓計", textEn: "Blood pressure monitor​" },
+            { text: "血糖機​", textEn: "Blood glucose meter​" },
+            { text: "InBody​", textEn: "InBody" },
+            { text: "以上皆有​", textEn: "All of the above​" }
         ],
-        correct: 3
+        correct: 4
     }
 ];
 
