@@ -30,7 +30,7 @@ const quizQuestions = [
             { text: "立即通報並逃生", textEn: "Immediately report and evacuate​" },
             { text: "躲起來等待救援​", textEn: "Hide and wait for rescue​" }
         ],
-        correct: 3
+        correct: 2
     },
     {
         id: 2,
@@ -42,7 +42,7 @@ const quizQuestions = [
             { text: "低姿勢前進", textEn: "Move forward in a low posture​" },
             { text: "躲在原地不動", textEn: "Stay where you are and do not move​" }
         ],
-        correct: 3
+        correct: 2
     },
     {
         id: 3,
@@ -54,7 +54,7 @@ const quizQuestions = [
             { text: "每個人都有責任確保自己與他人的安全", textEn: "Everyone is responsible for ensuring their own safety and the safety of others​" },
             { text: "安全只需遵守法規即可", textEn: "Safety only requires compliance with regulations​" }
         ],
-        correct: 3
+        correct: 2
     },
     {
         id: 4,
@@ -66,7 +66,7 @@ const quizQuestions = [
             { text: "未申請安全變更管理（SMOC）​", textEn: "Failing to apply for Safety Management of Change (SMOC)​" },
             { text: "遵守交通安全規定​", textEn: "Complying with traffic safety regulations​" }
         ],
-        correct: 4
+        correct: 3
     },
     {
         id: 5,
@@ -78,7 +78,7 @@ const quizQuestions = [
             { text: "鹼類​", textEn: "Alkali​" },
             { text: "特殊類", textEn: "Special​" }
         ],
-        correct: 1
+        correct: 0
     },
     {
         id: 6,
@@ -90,7 +90,7 @@ const quizQuestions = [
             { text: "51-100萬噸/CO2e", textEn: "510,000–1,000,000 tons CO₂e​" },
             { text: "101萬噸/CO2e以上", textEn: "Above 1,010,000 tons CO₂e​" }
         ],
-        correct: 1
+        correct: 0
     },
     {
         id: 7,
@@ -102,7 +102,7 @@ const quizQuestions = [
             { text: "減少人員訓練時間​", textEn: "Reduce personnel training time​" },
             { text: "降低設備成本", textEn: "Lower equipment costs​" }
         ],
-        correct: 2
+        correct: 1
     },
     {
         id: 8,
@@ -114,7 +114,7 @@ const quizQuestions = [
             { text: "新增化學品或改變使用量​", textEn: "Adding new chemicals or changing usage quantity​" },
             { text: "個人自行調整工作時間​", textEn: "Individually adjusting working hours​" }
         ],
-        correct: 3
+        correct: 2
     },
     {
         id: 9,
@@ -126,7 +126,7 @@ const quizQuestions = [
             { text: "72小時內​", textEn: "Within 72 hours" },
             { text: "不用通報​", textEn: "No need to report​" }
         ],
-        correct: 1
+        correct: 0
     },
     {
         id: 10,
@@ -138,7 +138,7 @@ const quizQuestions = [
             { text: "InBody​", textEn: "InBody" },
             { text: "以上皆有​", textEn: "All of the above​" }
         ],
-        correct: 4
+        correct: 3
     }
 ];
 
