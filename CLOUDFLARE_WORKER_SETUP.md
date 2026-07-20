@@ -1,12 +1,22 @@
 # Cloudflare Worker + Durable Object 排行榜 部署教學
 
-本專案的成績資料用 **Cloudflare Worker（迷你後端）+ Durable Object（DO）** 儲存：
+本專案的成績資料用 **Cloudflare Worker（迷你後端）+ Durable Object（DO）** 儲存，且**計分由後端負責**（前端拿不到答案、也算不出分數，避免使用者竄改成績）：
 
-- **寫入**：遊戲提交時 `POST {baseUrl}/submit`（JSON）→ Worker 轉給 DO 寫入。
+- **開始**：進測驗時 `POST {baseUrl}/start`（`{ id }`）→ 後端回一組**簽章 token**，內含伺服器端的開始時間。
+- **交卷**：`POST {baseUrl}/submit`（`{ token, answers }`）→ 後端用 token 內時間算「用時」、用 `env.ANSWER_KEY` 算「分數」，**一律忽略前端送來的分數/時間**，回傳 `{ score, time, rank, answerKey }`。
 - **讀取**：排行榜 `GET {baseUrl}/leaderboard` → 回傳排序後的 JSON。
-- **退路**：`config.js` 的 `api.baseUrl` 留空時，自動退回瀏覽器 `localStorage`，仍可遊玩。
+- **退路**：`config.js` 的 `api.baseUrl` 留空時，自動退回瀏覽器 `localStorage`（**離線試玩用，無防作弊、也無法算分**）。
 
 後端程式在 [`worker/worker.js`](./worker/worker.js)，設定在 [`worker/wrangler.toml`](./worker/wrangler.toml)。
+
+> **🔑 為什麼答案要放 Cloudflare secret、不寫進程式碼？**
+> 本專案原始碼在**公開 GitHub repo**（GitHub Pages）。若把正確答案寫進 `worker.js` 或 `game.js`，答案等於公開在 GitHub 上。
+> 因此**正確答案表 `ANSWER_KEY` 與簽章密鑰 `GAME_SECRET` 一律用 Cloudflare Worker secret 設定**（見下方「設定 secret」），這些值不進 git、只存在 Cloudflare。
+
+> **防作弊三道防線**（皆在後端）：
+> 1. 答案只在 `env.ANSWER_KEY` → 前端偽造分數無效（後端只認自己算的）。
+> 2. 用時由伺服器算（token 夾帶開始時間、HMAC 簽章防竄改）→ 前端送 `time` 無效。
+> 3. 一工號只計分一次（first-write-wins）+ 用時下限檢查 → 擋「反覆送答案試出正解再刷分」。
 
 > **為什麼用 Durable Object？**
 > 先前用「單一 KV key 存整個排行榜」，每次交卷都「讀整包 → 改 → 寫整包」。多人**同時**交卷時會用各自手上的舊資料互相覆蓋，導致**真實成績遺失**（競態）。
@@ -21,7 +31,35 @@
 ]
 ```
 
-同一工號只保留「最高分」那筆；同分時較快者覆蓋。
+**一工號只計分一次**：第一次交卷即定案，之後同工號再交卷會被擋（回 409），不覆蓋、不刷分。
+
+---
+
+## 設定 secret（必做，否則後端會回 500）
+
+計分需要兩個 secret，都用 wrangler 設定（值不會進 git）。在 `worker/` 目錄下：
+
+```bash
+cd worker
+
+# 1. 簽章密鑰：隨機字串即可（建議 32 字以上）。用來簽 /start 發的 token，防止竄改開始時間。
+npx wrangler secret put GAME_SECRET
+# 貼上你自己產生的隨機字串，例如用 `openssl rand -hex 32` 產生
+
+# 2. 正確答案表：JSON 字串，key = 題目 id、value = 正確選項 index（0 起算）。
+npx wrangler secret put ANSWER_KEY
+# 貼上下面這一整行 JSON（對應目前 game.js 的 10 題）：
+```
+
+目前題庫的答案（貼給 `ANSWER_KEY`）：
+
+```json
+{"1":2,"2":2,"3":2,"4":3,"5":0,"6":0,"7":1,"8":2,"9":0,"10":3}
+```
+
+> ⚠️ **改題目時記得同步更新 `ANSWER_KEY`**：`game.js` 的題目 `id` 與這裡的 key 要對得起來，value 是該題正確選項的索引（第一個選項為 `0`）。改完重跑 `npx wrangler secret put ANSWER_KEY` 覆蓋即可，不必重新 deploy。
+
+> secret 也可在後台設定：Worker 頁 → **Settings → Variables and Secrets → Add**（型別選 *Secret*）。
 
 ---
 
@@ -96,9 +134,11 @@ window.EHS_CONFIG = {
 ## 驗證
 
 1. 用瀏覽器開 `index.html`，完成一次測驗並提交：
-   - F12 Console 應出現 `✅ 已透過後端 API 寫入成績`。
+   - F12 Console 應出現 `✅ 已交卷，後端回傳成績`。
+   - 結果頁的分數/名次來自後端；若看到「成績送出失敗」或「無法開始測驗」，多半是 `GAME_SECRET` / `ANSWER_KEY` 未設定（後端回 500）。
 2. 直接打 API 也能測（把網址換成你的）：
    - 讀取：瀏覽器開 `https://你的網址/leaderboard` → 應看到 JSON 陣列。
+   - 驗證偽造無效：直接 `curl -X POST .../submit -d '{"answers":{}}'` 會被擋（`token 無效`），送假分數也沒用（後端只認自己算的）。
 3. 回首頁點 **排行榜**，或開 `leaderboard.html`：
    - Console 應出現 `✅ 已從後端讀取 N 筆排行榜資料`，表格顯示成績（分數高、用時短優先）。
 
@@ -111,5 +151,7 @@ window.EHS_CONFIG = {
 - **CORS**：Worker 回傳 `Access-Control-Allow-Origin: *`，前端能讀到回應、由 HTTP 狀態碼判斷成敗。要鎖網域就把 `worker.js` 裡 `CORS` 的 `'*'` 換成你的網址。
 - **時間欄位**：以「秒（浮點數）」存入，顯示時格式化為 `mm:ss.xx`。
 - **吞吐**：單一全域 DO 的寫入有上限（每秒數百筆），內部活動規模綽綽有餘。
-- **防灌水（選用）**：`/submit` 目前公開可寫，適合內部活動。如需更嚴格，可在 `worker.js` 加：工號白名單、共用密鑰（前端帶自訂 header 比對）、分數/時間合理範圍檢查、或簡易限流。
+- **防作弊**：計分已改由後端負責（答案在 `env.ANSWER_KEY`、用時由伺服器算、一工號一次），前端無法竄改成績。調整參數在 `worker.js` 上方：`POINTS_PER_QUESTION`（每題分數）、`MIN_SECONDS`（用時下限，短於此視為偽造）、`MAX_SECONDS`（token 逾時）。
+- **殘留風險（可接受）**：交卷後後端會回傳 `answerKey` 供「錯題回顧」顯示正確答案。理論上有人可用一組工號送隨機答案換取答案表——但那組工號的成績即定案（first-write-wins）無法再刷分，且答案本就是訓練教材、非機密。若要更嚴格可改為不回傳 `answerKey`（會關閉錯題回顧顯示正確答案的功能）。
+- **要更嚴格**：可再加工號白名單、鎖 CORS 來源網域（把 `worker.js` 的 `CORS` `'*'` 換成你的 `*.github.io` 網址）。
 - **從舊 KV 版遷移**：DO 用獨立儲存，部署後排行榜會從空白開始（舊 KV 測試資料不會帶過來）。如需保留舊資料，可寫一次性匯入腳本把 KV 內容寫入 DO。
