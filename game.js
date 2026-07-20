@@ -13,12 +13,14 @@ let gameState = {
     elapsedTime: 0,
     timerRunning: false,
     timerInterval: null,
+    sessionToken: null, // 後端 /start 發的簽章 token；交卷時附上，後端用它算用時並計分
     leaderboard: JSON.parse(localStorage.getItem('leaderboard')) || [],
 };
 
 // 後端 API（Cloudflare Worker）設定來自 config.js (window.EHS_CONFIG)
 
-// 模擬題目資料 (之後可連接到後端API)
+// 題目資料：只含題目文字與選項，「正確答案」已移至後端（Cloudflare Worker 的 env.ANSWER_KEY），
+// 前端看不到也算不出分數 → 計分完全由後端負責，避免使用者竄改成績。
 const quizQuestions = [
     {
         id: 1,
@@ -29,8 +31,7 @@ const quizQuestions = [
             { text: "先收拾重要物品再逃​", textEn: "Gather important belongings before escaping​" },
             { text: "立即通報並逃生", textEn: "Immediately report and evacuate​" },
             { text: "躲起來等待救援​", textEn: "Hide and wait for rescue​" }
-        ],
-        correct: 2
+        ]
     },
     {
         id: 2,
@@ -41,8 +42,7 @@ const quizQuestions = [
             { text: "憋氣衝過去", textEn: "Hold your breath and rush through​" },
             { text: "低姿勢前進", textEn: "Move forward in a low posture​" },
             { text: "躲在原地不動", textEn: "Stay where you are and do not move​" }
-        ],
-        correct: 2
+        ]
     },
     {
         id: 3,
@@ -53,8 +53,7 @@ const quizQuestions = [
             { text: "安全是公司的責任", textEn: "Safety is the company’s responsibility​" },
             { text: "每個人都有責任確保自己與他人的安全", textEn: "Everyone is responsible for ensuring their own safety and the safety of others​" },
             { text: "安全只需遵守法規即可", textEn: "Safety only requires compliance with regulations​" }
-        ],
-        correct: 2
+        ]
     },
     {
         id: 4,
@@ -65,8 +64,7 @@ const quizQuestions = [
             { text: "違反特殊作業許可規定​", textEn: "Violating special work permit requirements​" },
             { text: "未申請安全變更管理（SMOC）​", textEn: "Failing to apply for Safety Management of Change (SMOC)​" },
             { text: "遵守交通安全規定​", textEn: "Complying with traffic safety regulations​" }
-        ],
-        correct: 3
+        ]
     },
     {
         id: 5,
@@ -77,8 +75,7 @@ const quizQuestions = [
             { text: "酸類​", textEn: "Acid​" },
             { text: "鹼類​", textEn: "Alkali​" },
             { text: "特殊類", textEn: "Special​" }
-        ],
-        correct: 0
+        ]
     },
     {
         id: 6,
@@ -89,8 +86,7 @@ const quizQuestions = [
             { text: "31-50萬噸/CO2e​", textEn: "310,000–500,000 tons CO₂e​" },
             { text: "51-100萬噸/CO2e", textEn: "510,000–1,000,000 tons CO₂e​" },
             { text: "101萬噸/CO2e以上", textEn: "Above 1,010,000 tons CO₂e​" }
-        ],
-        correct: 0
+        ]
     },
     {
         id: 7,
@@ -101,8 +97,7 @@ const quizQuestions = [
             { text: "管控變更帶來的環安衛風險​", textEn: "Control EHS risks caused by changes​" },
             { text: "減少人員訓練時間​", textEn: "Reduce personnel training time​" },
             { text: "降低設備成本", textEn: "Lower equipment costs​" }
-        ],
-        correct: 1
+        ]
     },
     {
         id: 8,
@@ -113,8 +108,7 @@ const quizQuestions = [
             { text: "無任何變更的例行巡檢​", textEn: "Routine inspection with no changes​" },
             { text: "新增化學品或改變使用量​", textEn: "Adding new chemicals or changing usage quantity​" },
             { text: "個人自行調整工作時間​", textEn: "Individually adjusting working hours​" }
-        ],
-        correct: 2
+        ]
     },
     {
         id: 9,
@@ -125,8 +119,7 @@ const quizQuestions = [
             { text: "48小時內​", textEn: "Within 48 hours" },
             { text: "72小時內​", textEn: "Within 72 hours" },
             { text: "不用通報​", textEn: "No need to report​" }
-        ],
-        correct: 0
+        ]
     },
     {
         id: 10,
@@ -137,10 +130,13 @@ const quizQuestions = [
             { text: "血糖機​", textEn: "Blood glucose meter​" },
             { text: "InBody​", textEn: "InBody" },
             { text: "以上皆有​", textEn: "All of the above​" }
-        ],
-        correct: 3
+        ]
     }
 ];
+
+// 本局正確答案表：預設為 null（前端沒有答案），交卷後由後端回傳 answerKey 填入，
+// 供「錯題回顧」顯示正確答案。啟用後端時，這裡在交卷前一定是 null → 前端無從得知答案。
+let answerKey = null;
 
 // 一頁兩題 → 依題數自動計算總頁數（避免日後改題數時錯位）
 gameState.totalQuizPages = Math.ceil(quizQuestions.length / 2);
@@ -392,8 +388,25 @@ function confirmEmployeeId() {
     startQuizAfterEmployee();
 }
 
-function startQuizAfterEmployee() {
+async function startQuizAfterEmployee() {
     console.log('🎬 開始測驗（正式）');
+
+    // 向後端要一組簽章 token（內含伺服器端的開始時間，用時以此為準，前端無法竄改）。
+    // 未啟用後端時 token 維持 null，走本機模式（無防作弊，僅供離線試玩）。
+    gameState.sessionToken = null;
+    answerKey = null; // 新一局：清掉上一局的答案，交卷後才由後端回填
+    if (isRemoteBackendEnabled()) {
+        const token = await startRemoteSession(gameState.employeeId);
+        if (!token) {
+            showPopup(
+                '無法連線到伺服器，暫時無法開始測驗，請稍後再試。\n' +
+                'Cannot reach the server. Please try again later.'
+            );
+            backToHome();
+            return;
+        }
+        gameState.sessionToken = token;
+    }
 
     gameState.quizActive = true;
     gameState.startTime = Date.now();
@@ -524,17 +537,20 @@ function createQuestionElement(question, questionNumber) {
 
 
 /**
- * 計算目前總分（純計算、不更新畫面）。
- * 作答期間不顯示分數，避免玩家盯著分數變化反推正確答案。
+ * 依「後端回傳的答案表 answerKey」計算總分（僅在交卷後、拿到 answerKey 時有意義）。
+ * 前端在交卷前沒有 answerKey，因此無法自行算分或反推答案。
+ * 正式分數以後端回傳為準，此函式僅供離線後備顯示。
  * @returns {number} 總分
  */
 function calculateScore() {
     let score = 0;
-    gameState.questions.forEach(question => {
-        if (gameState.answers[question.id] === question.correct) {
-            score += 10;
-        }
-    });
+    if (answerKey) {
+        gameState.questions.forEach(question => {
+            if (gameState.answers[question.id] === Number(answerKey[question.id])) {
+                score += 10;
+            }
+        });
+    }
     gameState.score = score;
     return score;
 }
@@ -610,28 +626,50 @@ async function submitQuiz() {
 
     gameState.quizActive = false;
     resetTimer(); // 停止計時器（避免閒置 interval 持續觸發）
-    calculateScore(); // 交卷時才真正計分
 
+    if (isRemoteBackendEnabled()) {
+        // 後端模式：把作答送給後端，由後端計分並算用時（前端不再自行算分）
+        const result = await submitToRemote(gameState.answers);
+
+        if (!result) {
+            // 連線失敗：不顯示假分數，請使用者重試
+            showPopup(
+                '成績送出失敗，請檢查網路後再試一次。\n' +
+                'Failed to submit your result. Please check your connection and try again.'
+            );
+            gameState.quizActive = true; // 允許重按提交
+            return;
+        }
+
+        // 後端回傳答案表 → 錯題回顧才有正確答案可顯示
+        if (result.answerKey) answerKey = result.answerKey;
+
+        if (result.error === 'already_submitted') {
+            showPopup(
+                '此工號先前已完成測驗，將顯示已記錄的成績（不覆蓋）。\n' +
+                'This ID has already completed the quiz; showing the recorded result.'
+            );
+        }
+
+        gameState.score = Number(result.score) || 0;
+        const totalTime = Number(result.time) || (gameState.elapsedTime / 1000);
+        showQuizResult(gameState.score, totalTime, result.rank);
+        return;
+    }
+
+    // 本機模式（未設定後端）：無答案表可算分，僅供離線試玩
+    calculateScore();
     const totalTime = gameState.elapsedTime / 1000;
-
     const newEntry = {
         id: gameState.employeeId,
         score: gameState.score,
         time: totalTime,
         date: new Date().toLocaleString('zh-TW')
     };
-
-    // 本機備份（離線/讀取失敗時的後備）
     gameState.leaderboard.push(newEntry);
     gameState.leaderboard.sort((a, b) => (b.score - a.score) || (a.time - b.time));
     localStorage.setItem('leaderboard', JSON.stringify(gameState.leaderboard));
-
-    // 透過後端 API 寫入（fire-and-forget）
-    submitToRemote(newEntry);
-
-    // 計算名次（優先以後端全體資料為準）
     const rank = await computeRank(newEntry);
-
     showQuizResult(gameState.score, totalTime, rank);
 }
 
@@ -732,9 +770,20 @@ function showWrongReview() {
     if (!list) return;
     list.innerHTML = '';
 
+    // 沒有答案表（後端未回傳/離線）就無法顯示正確答案
+    if (!answerKey) {
+        list.innerHTML =
+            '<div class="review-empty">' +
+            '<p class="review-empty-zh">目前無法載入正確答案。</p>' +
+            '<p class="review-empty-en">Correct answers are not available.</p>' +
+            '</div>';
+        showPage('quiz-review-page');
+        return;
+    }
+
     // 找出答錯（含未作答）的題目，維持本局出題順序
     const wrong = gameState.questions.filter(
-        q => gameState.answers[q.id] !== q.correct
+        q => gameState.answers[q.id] !== Number(answerKey[q.id])
     );
 
     if (wrong.length === 0) {
@@ -750,11 +799,12 @@ function showWrongReview() {
     wrong.forEach((q, idx) => {
         const userIdx = gameState.answers[q.id]; // 可能為 undefined（未作答）
 
+        const correctIdx = Number(answerKey[q.id]);
         let optionsHTML = '';
         q.options.forEach((opt, i) => {
             let cls = 'review-option';
             let tag = '';
-            if (i === q.correct) {
+            if (i === correctIdx) {
                 cls += ' correct';
                 tag = '✓ 正確答案 / Correct';
             } else if (i === userIdx) {
@@ -1242,38 +1292,64 @@ function apiBaseUrl() {
 }
 
 /**
- * 透過 HTTP POST 把一筆成績寫入後端（Cloudflare Worker → KV）。
- * 後端回傳正常 CORS，因此可由回應碼確認是否成功。
- * @param {{id:string, score:number, time:number, date:string}} entry
- * @returns {Promise<boolean>} 是否寫入成功
+ * 開始一局測驗：向後端要一組簽章 token（內含伺服器端開始時間）。
+ * @param {string} id 工號
+ * @returns {Promise<string|null>} token；失敗回 null
  */
-async function submitToRemote(entry) {
-    if (!isRemoteBackendEnabled()) {
-        console.warn('⚠️ 尚未設定後端網址（config.js），略過寫入，僅存本機。');
-        return false;
+async function startRemoteSession(id) {
+    if (!isRemoteBackendEnabled()) return null;
+    try {
+        const res = await fetch(`${apiBaseUrl()}/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.token) {
+            console.error(`❌ 取得測驗 token 失敗（HTTP ${res.status}）`, data.error || '');
+            return null;
+        }
+        return data.token;
+    } catch (err) {
+        console.error('❌ 取得測驗 token 失敗', err);
+        return null;
     }
+}
 
+/**
+ * 交卷：把作答（{ 題目id: 選項index }）連同 token 送給後端，由後端計分並算用時。
+ * 前端不再送 score / time，後端一律以自己算的為準。
+ * @param {Object<string, number>} answers 作答表
+ * @returns {Promise<{ok?:boolean, error?:string, score?:number, time?:number, rank?:number, answerKey?:Object}|null>}
+ *          後端回傳的結果物件（含 409 already_submitted）；連線失敗回 null
+ */
+async function submitToRemote(answers) {
+    if (!isRemoteBackendEnabled()) return null;
     try {
         const res = await fetch(`${apiBaseUrl()}/submit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                id: entry.id,
-                score: entry.score,
-                time: entry.time,
-                date: entry.date,
+                token: gameState.sessionToken,
+                answers,
             }),
         });
-
-        if (!res.ok) {
-            console.error(`❌ 寫入後端失敗（HTTP ${res.status}）`);
-            return false;
+        const data = await res.json().catch(() => null);
+        if (data == null) {
+            console.error(`❌ 交卷失敗（HTTP ${res.status}，無法解析回應）`);
+            return null;
         }
-        console.log('✅ 已透過後端 API 寫入成績');
-        return true;
+        // 200（成功）與 409（已完成）都帶有可用資料 → 回傳給呼叫端處理；
+        // 其餘 4xx/5xx（如 token 無效、伺服器未設定）視為失敗。
+        if (!res.ok && res.status !== 409) {
+            console.error(`❌ 交卷失敗（HTTP ${res.status}）`, data.error || '');
+            return null;
+        }
+        console.log('✅ 已交卷，後端回傳成績');
+        return data;
     } catch (err) {
-        console.error('❌ 寫入後端失敗', err);
-        return false;
+        console.error('❌ 交卷失敗', err);
+        return null;
     }
 }
 
