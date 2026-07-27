@@ -2,6 +2,11 @@ name = "ehs-leaderboard"
 main = "worker.js"
 compatibility_date = "2025-01-01"
 
+# 必要的 secret（用 `wrangler secret put` 設定，不寫在這裡、也不進 git）：
+#   GAME_SECRET  — 簽 /start token 用的隨機字串（HMAC 密鑰），防止竄改開始時間
+#   ANSWER_KEY   — 正確答案表 JSON，如 {"1":2,"2":2,...}（key=題目id, value=正確選項index）
+# 設定步驟見 ../CLOUDFLARE_WORKER_SETUP.md「設定 secret」。未設定時後端 /start、/submit 會回 500。
+
 # Durable Object 綁定：程式裡用 env.LEADERBOARD 取得實例。
 [[durable_objects.bindings]]
 name = "LEADERBOARD"
